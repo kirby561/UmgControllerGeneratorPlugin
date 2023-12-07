@@ -33,8 +33,17 @@ void UUmgControllerGeneratorPluginBPLibrary::CreateUmgController(UObject* inputB
 		name = name.RightChop(wbpPrefix.Len());
 	}
 
+	// Get the widget path name.
+	FString contentPath = blueprint->GetPathName();
+
+	// We don't need the extension
+	int dotIndex = -1;
+	if (contentPath.FindLastChar(TEXT('.'), dotIndex)) {
+		contentPath = contentPath.Left(dotIndex);
+	}
+
 	CodeGenerator::CreateFiles(
-		TEXT("/Game/WBP_SomeWidget"),
+		contentPath,
 		name,
 		TEXT("Controller"),
 		widgets,
