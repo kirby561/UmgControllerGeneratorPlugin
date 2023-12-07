@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "UmgControllerGeneratorPlugin",
+	"Description": "Generates and updates C++ controller classes for Widget Blueprints from within the Unreal Editor.",
+	"Category": "Other",
+	"CreatedBy": "kirby561",
+	"CreatedByURL": "https://www.youtube.com/@kirby561",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "UmgControllerGeneratorPlugin",
+			"Type": "Editor",
+			"LoadingPhase": "PreLoadingScreen"
+		}
+	]
+}

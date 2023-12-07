@@ -1,0 +1,41 @@
+*.ipch
+.vs/
+.vscode/
+.metadata
+.vsconfig
+.ignore
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Blender backups and caches
+*.blend1
+blendcache_*/
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+*.ipa
+
+Intermediate/
+Binaries/
+Build/
+Saved/
+DerivedDataCache/
+
+# Icon files
+ehthumbs.db
+Thumbs.db
