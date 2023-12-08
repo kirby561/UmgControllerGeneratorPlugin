@@ -1,7 +1,12 @@
 #include "CodeGenerator.h"
 #include "HeaderLookupTable.h"
+#include "CodeEventSignaler.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "ILiveCodingModule.h"
+#include "BlueprintEditorLibrary.h"
+#include "FileHelpers.h"
+#include "WidgetBlueprint.h"
 
 DEFINE_LOG_CATEGORY_STATIC(CodeGeneratorSub, Log, All);
 
@@ -10,7 +15,7 @@ const FString HeaderFileTemplate = TEXT("\
 \n\
 #include \"CoreMinimal.h\"\n\
 #include \"Blueprint/UserWidget.h\"\n\
-#include \"[WIDGET_NAME][WIDGET_SUFFIX].generated.h\"\n\
+#include \"[HEADER_FILE_NAME].generated.h\"\n\
 \n\
 UCLASS()\n\
 class U[WIDGET_NAME][WIDGET_SUFFIX] : public UUserWidget {\n\
@@ -47,7 +52,7 @@ public:\n\
 ");
 
 const FString CppFileTemplate = TEXT("\
-#include \"[WIDGET_NAME][WIDGET_SUFFIX].h\"\n\
+#include \"[HEADER_FILE_NAME].h\"\n\
 \n\
 // ---------- Generated Includes Section ---------- //\n\
 //             (Don't modify manually)              //\n\
@@ -85,45 +90,134 @@ const FString BindWidgetLabel = TEXT("UPROPERTY(BlueprintReadOnly, meta = (BindW
 const FString WidgetNameMarker = TEXT("[WIDGET_NAME]");
 const FString WidgetSuffixMarker = TEXT("[WIDGET_SUFFIX]");
 const FString WidgetPathMarker = TEXT("[WIDGET_PATH]");
+const FString HeaderFileNameMarker = TEXT("[HEADER_FILE_NAME]");
 
-void CodeGenerator::CreateFiles(FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
-    // Get the widgets that are not the default name
-    TArray<UWidget*> namedWidgets = GetNamedWidgets(widgets);
+void CodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
+    if (_currentProcess == nullptr) {
+        _currentProcess = NewObject<UFileCreationProcess>();
+        _currentProcess->AddToRoot();
 
-    // Make the header from the template
-    FString headerFileStr = HeaderFileTemplate;
-    headerFileStr = headerFileStr.Replace(*WidgetNameMarker, *widgetName);
-    headerFileStr = headerFileStr.Replace(*WidgetSuffixMarker, *widgetSuffix);
-    headerFileStr = headerFileStr.Replace(*WidgetPathMarker, *widgetPath);
-
-    // Fill in the dynamic content
-    FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileStr);
-    if (updatedHeaderFileContents.IsEmpty()) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the header file at %s"), *headerPath);
-        return;
+        // We also want to listen for compile events
+        ILiveCodingModule* liveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
+        if (liveCoding != nullptr) {
+            // Add a live coding delegate. Technically we should save the handle this returns so we can remove it
+            // on shutdown but we're alive for the whole editor lifetime anyway so who cares.
+            liveCoding->GetOnPatchCompleteDelegate().AddLambda([] () {
+                if (_onPatchingComplete) {
+                    _onPatchingComplete();
+                }
+            });
+        }
     }
 
-    // Make the CPP from the template
-    FString cppFileStr = CppFileTemplate;
-    cppFileStr = cppFileStr.Replace(*WidgetNameMarker, *widgetName);
-    cppFileStr = cppFileStr.Replace(*WidgetSuffixMarker, *widgetSuffix);
+    FString className = widgetName + widgetSuffix;
+    _currentProcess->Start(
+        className,
+        [widgetPath, widgetName, widgetSuffix, widgets, className, blueprint] (FString headerFilePath, FString cppFilePath) {
+            // Get the widgets that are not the default name
+            TArray<UWidget*> namedWidgets = GetNamedWidgets(widgets);
 
-    // Fill in the dynamic content
-    FString updatedCppFileContents = UpdateCppFile(namedWidgets, cppFileStr);
-    if (updatedCppFileContents.IsEmpty()) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the cpp file at %s"), *cppPath);
-        return;
-    }
+            // Make the header from the template
+            FString headerFileName = FPaths::GetBaseFilename(headerFilePath);
+            FString headerFileStr = HeaderFileTemplate;
+            headerFileStr = headerFileStr.Replace(*WidgetNameMarker, *widgetName);
+            headerFileStr = headerFileStr.Replace(*WidgetSuffixMarker, *widgetSuffix);
+            headerFileStr = headerFileStr.Replace(*WidgetPathMarker, *widgetPath);
+            headerFileStr = headerFileStr.Replace(*HeaderFileNameMarker, *headerFileName);
 
-    // Save both to a file
-    if (!FFileHelper::SaveStringToFile(updatedHeaderFileContents, *headerPath)) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the header file to %s"), *headerPath);
-        return;
-    }
-    if (!FFileHelper::SaveStringToFile(updatedCppFileContents, *cppPath)) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the cpp file to %s"), *cppPath);
-        return;
-    }
+            // Fill in the dynamic content
+            FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileStr);
+            if (updatedHeaderFileContents.IsEmpty()) {
+                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the header file at %s"), *headerFilePath);
+                return;
+            }
+
+            // Make the CPP from the template
+            FString cppFileStr = CppFileTemplate;
+            cppFileStr = cppFileStr.Replace(*WidgetNameMarker, *widgetName);
+            cppFileStr = cppFileStr.Replace(*WidgetSuffixMarker, *widgetSuffix);
+            cppFileStr = cppFileStr.Replace(*HeaderFileNameMarker, *headerFileName);
+
+            // Fill in the dynamic content
+            FString updatedCppFileContents = UpdateCppFile(namedWidgets, cppFileStr);
+            if (updatedCppFileContents.IsEmpty()) {
+                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the cpp file at %s"), *cppFilePath);
+                return;
+            }
+
+            // Save both to a file
+            if (!FFileHelper::SaveStringToFile(updatedHeaderFileContents, *headerFilePath)) {
+                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the header file to %s"), *headerFilePath);
+                return;
+            }
+            if (!FFileHelper::SaveStringToFile(updatedCppFileContents, *cppFilePath)) {
+                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the cpp file to %s"), *cppFilePath);
+                return;
+            }
+
+            // Trigger a live compile for the changes
+            ILiveCodingModule* liveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
+            if (liveCoding != nullptr && liveCoding->IsEnabledForSession())	{
+                if (liveCoding->AutomaticallyCompileNewClasses()) {
+                    // Invoke a compile
+                    UE_LOG(CodeGeneratorSub, Display, TEXT("Manually invoking compile"));
+                    liveCoding->Compile();
+
+                    FString capturedClassName = className;
+                    _onPatchingComplete = [blueprint, capturedClassName] () {
+                        // There doesn't appear to be a way to get the result of the last compile
+                        // from the live coding module, so we'll assume it succeeded and check
+                        // if reparenting fails later. The user will see the output in the console
+                        // either way.
+                        UE_LOG(CodeGeneratorSub, Display, TEXT("Compile finished."));
+
+                        // Now that the compile is done, lookup the class by name:
+                        UClass* resultClass = nullptr;
+                        for (TObjectIterator<UClass> uclassIterator; uclassIterator; ++uclassIterator) {
+                            FString nameToTest = uclassIterator->GetName();
+                            if (nameToTest == capturedClassName) {
+                                resultClass = *uclassIterator;
+                                break;
+                            }
+                        }
+
+                        if (resultClass != nullptr) {
+                            UE_LOG(CodeGeneratorSub, Display, TEXT("Reparenting to the new class."));
+                            UBlueprintEditorLibrary::ReparentBlueprint(blueprint, resultClass);
+
+                            // ReparentBlueprint doesn't save the blueprint after compiling so it won't work
+                            // after restarting the editor. So we need to save it manually
+                            TArray<UPackage*> packagesToSave;
+                            packagesToSave.Add(blueprint->GetOutermost());
+                            FEditorFileUtils::EPromptReturnCode result = FEditorFileUtils::PromptForCheckoutAndSave( 
+                                packagesToSave,
+                                false, // bCheckDirty, 
+                                false // bPromptToSave
+                            );
+
+                            if (result != FEditorFileUtils::EPromptReturnCode::PR_Success) {
+                                UE_LOG(CodeGeneratorSub, Warning, TEXT("There was an issue saving the blueprint after reparenting. You will need to reparent manually."));
+                            } else {
+                                UE_LOG(CodeGeneratorSub, Display, TEXT("Reparenting complete."));
+                            }
+                        } else {
+                            UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not find the generated class. You will need to reparent manually."));
+                        }
+
+                        // ?? TODO: The last thing we need to do is update our header map for these files as well
+
+                        _onPatchingComplete = nullptr;
+                    };
+                }
+            }
+        },
+        [] (FString errorDescription) {
+            if (!errorDescription.IsEmpty()) {
+                // ?? TODO: Show a dialog instead of just logging
+                UE_LOG(CodeGeneratorSub, Error, TEXT("Something went wrong creating the controller files: %s"), *errorDescription);
+            } // Else it's just a cancel
+        }
+    );
 }
 
 void CodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {

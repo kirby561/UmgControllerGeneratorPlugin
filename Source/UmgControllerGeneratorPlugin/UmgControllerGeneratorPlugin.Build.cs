@@ -42,6 +42,10 @@ public class UmgControllerGeneratorPlugin : ModuleRules
 				"UMGEditor",
 				"Json", 
 				"JsonUtilities",
+				"GameProjectGeneration",
+				"LiveCoding",
+				"BlueprintEditorLibrary",
+				"UnrealEd",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

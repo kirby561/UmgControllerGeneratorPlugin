@@ -9,7 +9,7 @@
  */
 class CodeGenerator {
 public:
-    static void CreateFiles(FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
+    static void CreateFiles(class UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
     static void UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
 
 private:
@@ -21,4 +21,13 @@ private:
 
     // Holds a lookup table from class name to header file
     static inline class UHeaderLookupTable* _headerLookupTable = nullptr;
+
+	// Keeps track of the currently running creation process.
+	// This will be set to nullptr when completed.
+	static inline class UFileCreationProcess* _currentProcess = nullptr;
+
+    // This is set to a function that should be invoked when live coding
+    // completes. It will be nullptr unless we're currently waiting for
+    // live coding to complete before we reparent a generated class.
+    static inline std::function<void()> _onPatchingComplete = nullptr;
 };

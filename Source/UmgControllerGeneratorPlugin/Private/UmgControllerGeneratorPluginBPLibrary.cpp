@@ -43,6 +43,7 @@ void UUmgControllerGeneratorPluginBPLibrary::CreateUmgController(UObject* inputB
 	}
 
 	CodeGenerator::CreateFiles(
+		blueprint,
 		contentPath,
 		name,
 		TEXT("Controller"),
