@@ -19,4 +19,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Update UMG Controller", Keywords = "UmgControllerGeneratorPlugin update umg controller"), Category = "UmgControllerGeneratorPlugin")
 	static bool UpdateUmgController(UObject* inputBlueprint);
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Update Mappings ", Keywords = "UmgControllerGeneratorPlugin update mappings"), Category = "UmgControllerGeneratorPlugin")
+	static bool UpdateMappings(TArray<UObject*> inputBlueprints);
 };

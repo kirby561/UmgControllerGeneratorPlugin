@@ -68,7 +68,7 @@ public:
      *       the U prefix. If it's not, you will need to manually update the mapping in
      *       the BlueprintSourceMap.json file.
      */
-    void UpdateMappings();
+    void UpdateMappings(const TArray<UBlueprint*>& files, FString nameSuffix);
 
 private: // Methods
     FString GetFilePath();

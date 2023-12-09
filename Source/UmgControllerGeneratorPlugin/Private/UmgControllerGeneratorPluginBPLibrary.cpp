@@ -86,3 +86,23 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateUmgController(UObject* inputB
 
 	return true;
 }
+
+bool UUmgControllerGeneratorPluginBPLibrary::UpdateMappings(TArray<UObject*> inputBlueprints) {
+	TArray<UBlueprint*> blueprints;
+	int index = 0;
+	for (UObject* obj : inputBlueprints) {
+		UBlueprint* blueprint = Cast<UBlueprint>(obj);
+		if (blueprint == nullptr) {
+			UE_LOG(UmgControllerGeneratorPluginSub, Error, TEXT("UpdateMappings called without a blueprint in index %d."), index);
+		} else {
+			blueprints.Add(blueprint);
+		}
+		index++;
+	}
+
+	UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
+	sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+	sourceMap->UpdateMappings(blueprints, TEXT("Controller"));
+
+	return true; // ?? TODO: Actually return if it succeeded
+}
