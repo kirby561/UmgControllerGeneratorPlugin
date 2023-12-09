@@ -7,6 +7,7 @@
 #include "BlueprintEditorLibrary.h"
 #include "FileHelpers.h"
 #include "WidgetBlueprint.h"
+#include "BlueprintSourceMap.h"
 
 DEFINE_LOG_CATEGORY_STATIC(CodeGeneratorSub, Log, All);
 
@@ -155,6 +156,12 @@ void CodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath,
                 return;
             }
 
+            // Update the header map
+            UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
+            sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+            sourceMap->AddMapping(blueprint, headerFilePath, cppFilePath);
+            sourceMap->SaveMapping();
+
             // Trigger a live compile for the changes
             ILiveCodingModule* liveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
             if (liveCoding != nullptr && liveCoding->IsEnabledForSession())	{
@@ -204,8 +211,6 @@ void CodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath,
                             UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not find the generated class. You will need to reparent manually."));
                         }
 
-                        // ?? TODO: The last thing we need to do is update our header map for these files as well
-
                         _onPatchingComplete = nullptr;
                     };
                 }
@@ -231,7 +236,7 @@ void CodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const 
         return;
     }
 
-    FString updatedHeaderFileContents = UpdateHeaderFile(widgets, headerFileContents);
+    FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileContents);
     if (updatedHeaderFileContents.IsEmpty()) {
         UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the header file at %s"), *headerPath);
         return;
@@ -243,7 +248,7 @@ void CodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const 
         return;
     }
 
-    FString updatedCppFileContents = UpdateCppFile(widgets, cppFileContents);
+    FString updatedCppFileContents = UpdateCppFile(namedWidgets, cppFileContents);
     if (updatedCppFileContents.IsEmpty()) {
         UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the cpp file at %s"), *cppPath);
         return;

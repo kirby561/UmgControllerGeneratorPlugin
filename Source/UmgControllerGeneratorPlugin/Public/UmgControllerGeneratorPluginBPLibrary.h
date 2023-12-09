@@ -16,4 +16,7 @@ class UUmgControllerGeneratorPluginBPLibrary : public UBlueprintFunctionLibrary
 public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Create UMG Controller", Keywords = "UmgControllerGeneratorPlugin create umg controller"), Category = "UmgControllerGeneratorPlugin")
 	static void CreateUmgController(UObject* inputBlueprint, FString headerPath, FString cppPath);
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Update UMG Controller", Keywords = "UmgControllerGeneratorPlugin update umg controller"), Category = "UmgControllerGeneratorPlugin")
+	static bool UpdateUmgController(UObject* inputBlueprint);
 };
