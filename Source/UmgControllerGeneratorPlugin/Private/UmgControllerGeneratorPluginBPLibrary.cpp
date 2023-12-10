@@ -43,7 +43,7 @@ void UUmgControllerGeneratorPluginBPLibrary::CreateUmgController(UObject* inputB
 		contentPath = contentPath.Left(dotIndex);
 	}
 
-	CodeGenerator::CreateFiles(
+	GetCodeGenerator()->CreateFiles(
 		blueprint,
 		contentPath,
 		name,
@@ -62,8 +62,8 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateUmgController(UObject* inputB
 		return false;
 	}
 
-	UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-	sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+    UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
+    sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
 	FBlueprintSourceModel entry = sourceMap->GetSourcePathsFor(blueprint);
 	if (!entry.IsValid()) {
 		UE_LOG(UmgControllerGeneratorPluginSub, Error, TEXT("No source map entry for %s. Fix the mapping or try Update Mappings."), *blueprint->GetPathName());
@@ -82,7 +82,7 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateUmgController(UObject* inputB
 	if (name.StartsWith(wbpPrefix)) {
 		name = name.RightChop(wbpPrefix.Len());
 	}
-	CodeGenerator::UpdateFiles(name, TEXT("Controller"), widgets, entry.HeaderPath, entry.CppPath);
+	GetCodeGenerator()->UpdateFiles(name, TEXT("Controller"), widgets, entry.HeaderPath, entry.CppPath);
 
 	return true;
 }
@@ -100,9 +100,17 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateMappings(TArray<UObject*> inp
 		index++;
 	}
 
-	UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-	sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+    UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
+    sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
 	sourceMap->UpdateMappings(blueprints, TEXT("Controller"));
 
 	return true; // ?? TODO: Actually return if it succeeded
+}
+
+UCodeGenerator* UUmgControllerGeneratorPluginBPLibrary::GetCodeGenerator() {
+	if (_codeGeneratorInstance == nullptr) {
+		_codeGeneratorInstance = NewObject<UCodeGenerator>();
+		_codeGeneratorInstance->AddToRoot();
+	}
+	return _codeGeneratorInstance;
 }

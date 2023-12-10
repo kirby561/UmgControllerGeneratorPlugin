@@ -22,4 +22,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Update Mappings ", Keywords = "UmgControllerGeneratorPlugin update mappings"), Category = "UmgControllerGeneratorPlugin")
 	static bool UpdateMappings(TArray<UObject*> inputBlueprints);
+
+private:
+	static class UCodeGenerator* GetCodeGenerator();
+	static inline class UCodeGenerator* _codeGeneratorInstance = nullptr;
 };

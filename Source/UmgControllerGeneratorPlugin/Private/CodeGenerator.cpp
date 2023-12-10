@@ -7,7 +7,8 @@
 #include "BlueprintEditorLibrary.h"
 #include "FileHelpers.h"
 #include "WidgetBlueprint.h"
-#include "BlueprintSourceMap.h"
+#include "BlueprintSourceMap.h" 	
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(CodeGeneratorSub, Log, All);
 
@@ -93,17 +94,16 @@ const FString WidgetSuffixMarker = TEXT("[WIDGET_SUFFIX]");
 const FString WidgetPathMarker = TEXT("[WIDGET_PATH]");
 const FString HeaderFileNameMarker = TEXT("[HEADER_FILE_NAME]");
 
-void CodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
+void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
     if (_currentProcess == nullptr) {
         _currentProcess = NewObject<UFileCreationProcess>();
-        _currentProcess->AddToRoot();
 
         // We also want to listen for compile events
         ILiveCodingModule* liveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
         if (liveCoding != nullptr) {
             // Add a live coding delegate. Technically we should save the handle this returns so we can remove it
             // on shutdown but we're alive for the whole editor lifetime anyway so who cares.
-            liveCoding->GetOnPatchCompleteDelegate().AddLambda([] () {
+            liveCoding->GetOnPatchCompleteDelegate().AddLambda([this] () {
                 if (_onPatchingComplete) {
                     _onPatchingComplete();
                 }
@@ -114,7 +114,7 @@ void CodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath,
     FString className = widgetName + widgetSuffix;
     _currentProcess->Start(
         className,
-        [widgetPath, widgetName, widgetSuffix, widgets, className, blueprint] (FString headerFilePath, FString cppFilePath) {
+        [this, widgetPath, widgetName, widgetSuffix, widgets, className, blueprint] (FString headerFilePath, FString cppFilePath) {
             // Get the widgets that are not the default name
             TArray<UWidget*> namedWidgets = GetNamedWidgets(widgets);
 
@@ -166,53 +166,85 @@ void CodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath,
             ILiveCodingModule* liveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
             if (liveCoding != nullptr && liveCoding->IsEnabledForSession())	{
                 if (liveCoding->AutomaticallyCompileNewClasses()) {
+                    if (_autoReparentBlueprintsEnabled) {
+                        // Setup the patch complete callback and trigger a compile. This will let us reparent
+                        // the class when the compile has finished in the blueprint so the user doesn't have to.
+                        FString capturedClassName = className;
+                        _onPatchingComplete = [this, blueprint, capturedClassName] () {
+                            // There doesn't appear to be a way to get the result of the last compile
+                            // from the live coding module, so we'll assume it succeeded and check
+                            // if reparenting fails later. The user will see the output in the console
+                            // either way.
+                            UE_LOG(CodeGeneratorSub, Display, TEXT("Compile finished."));
+
+                            // Now that the compile is done, lookup the class by name:
+                            UClass* resultClass = nullptr;
+                            for (TObjectIterator<UClass> uclassIterator; uclassIterator; ++uclassIterator) {
+                                FString nameToTest = uclassIterator->GetName();
+                                if (nameToTest == capturedClassName) {
+                                    resultClass = *uclassIterator;
+                                    break;
+                                }
+                            }
+
+                            if (resultClass != nullptr) {
+                                UE_LOG(CodeGeneratorSub, Display, TEXT("Reparenting to the new class."));
+                                UBlueprintEditorLibrary::ReparentBlueprint(blueprint, resultClass);
+
+                                // ReparentBlueprint doesn't save the blueprint after compiling so it won't work
+                                // after restarting the editor. So we need to save it manually
+                                TArray<UPackage*> packagesToSave;
+                                packagesToSave.Add(blueprint->GetOutermost());
+                                FEditorFileUtils::EPromptReturnCode result = FEditorFileUtils::PromptForCheckoutAndSave( 
+                                    packagesToSave,
+                                    false, // bCheckDirty, 
+                                    false // bPromptToSave
+                                );
+
+                                if (result != FEditorFileUtils::EPromptReturnCode::PR_Success) {
+                                    UE_LOG(CodeGeneratorSub, Warning, TEXT("There was an issue saving the blueprint after reparenting. You will need to reparent manually."));
+                                } else {
+                                    UE_LOG(CodeGeneratorSub, Display, TEXT("Reparenting complete."));
+                                }
+                            } else {
+                                UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not find the generated class. You will need to reparent manually."));
+                            }
+
+                            _onPatchingComplete = nullptr;
+                        };
+                    }
+
                     // Invoke a compile
                     UE_LOG(CodeGeneratorSub, Display, TEXT("Manually invoking compile"));
-                    liveCoding->Compile();
+                    ELiveCodingCompileFlags flags = ELiveCodingCompileFlags::None;
+                    ELiveCodingCompileResult result = ELiveCodingCompileResult::Failure;
+                    int attempts = 0;
+                    bool succeeded = false;
+                    while (!succeeded) {
+                        succeeded = liveCoding->Compile(flags, &result);
 
-                    FString capturedClassName = className;
-                    _onPatchingComplete = [blueprint, capturedClassName] () {
-                        // There doesn't appear to be a way to get the result of the last compile
-                        // from the live coding module, so we'll assume it succeeded and check
-                        // if reparenting fails later. The user will see the output in the console
-                        // either way.
-                        UE_LOG(CodeGeneratorSub, Display, TEXT("Compile finished."));
+                        // Sometimes the live coding module is still running even though its OnPatchingCompleted delegate
+                        // has fired. However, we know it will be reset shortly so just wait for it. This could be a timer
+                        // so it doesn't block the thread but this is an editor tool and it's very quick so whatever.
+                        if (!succeeded) {
+                            UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not invoke compile. result: %d, attempts: %d"), (int)result, attempts);
 
-                        // Now that the compile is done, lookup the class by name:
-                        UClass* resultClass = nullptr;
-                        for (TObjectIterator<UClass> uclassIterator; uclassIterator; ++uclassIterator) {
-                            FString nameToTest = uclassIterator->GetName();
-                            if (nameToTest == capturedClassName) {
-                                resultClass = *uclassIterator;
-                                break;
-                            }
+                            // Just hang the thread while we wait for the current compile to finish.
+		                    FPlatformProcess::Sleep(0.1f);
                         }
 
-                        if (resultClass != nullptr) {
-                            UE_LOG(CodeGeneratorSub, Display, TEXT("Reparenting to the new class."));
-                            UBlueprintEditorLibrary::ReparentBlueprint(blueprint, resultClass);
-
-                            // ReparentBlueprint doesn't save the blueprint after compiling so it won't work
-                            // after restarting the editor. So we need to save it manually
-                            TArray<UPackage*> packagesToSave;
-                            packagesToSave.Add(blueprint->GetOutermost());
-                            FEditorFileUtils::EPromptReturnCode result = FEditorFileUtils::PromptForCheckoutAndSave( 
-                                packagesToSave,
-                                false, // bCheckDirty, 
-                                false // bPromptToSave
-                            );
-
-                            if (result != FEditorFileUtils::EPromptReturnCode::PR_Success) {
-                                UE_LOG(CodeGeneratorSub, Warning, TEXT("There was an issue saving the blueprint after reparenting. You will need to reparent manually."));
-                            } else {
-                                UE_LOG(CodeGeneratorSub, Display, TEXT("Reparenting complete."));
-                            }
-                        } else {
-                            UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not find the generated class. You will need to reparent manually."));
+                        // Give it about 5 seconds before giving up
+                        attempts++;
+                        if (attempts > 50) {
+                            UE_LOG(CodeGeneratorSub, Warning, TEXT("Exceeded max number of attempts waiting for compilation."));
+                            break;
                         }
+                    }
 
+                    if (!succeeded) {
+                        UE_LOG(CodeGeneratorSub, Warning, TEXT("Failed to trigger a compile. You will need to reparent your class manually to the controller."));
                         _onPatchingComplete = nullptr;
-                    };
+                    }
                 }
             }
         },
@@ -225,7 +257,7 @@ void CodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath,
     );
 }
 
-void CodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
+void UCodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
     // Get the widgets that are not the default name
     TArray<UWidget*> namedWidgets = GetNamedWidgets(widgets);
 
@@ -265,7 +297,7 @@ void CodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const 
     }
 }
 
-FString CodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents) {
+FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents) {
     FString result;
 
     // Find the different sections of the file
@@ -309,7 +341,7 @@ FString CodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FS
     return result;
 }
 
-FString CodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FString cppContents) {
+FString UCodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FString cppContents) {
     FString result;
 
     // Find the different sections of the file
@@ -331,13 +363,46 @@ FString CodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FStri
 
     // Get the include for each widget and keep them in a set
     UHeaderLookupTable* lookupTable = GetHeaderLookupTable();
+    lookupTable->InitTable();
+    UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
+    sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
     TSet<FString> includes;
     for (UWidget* widget : namedWidgets) {
         UClass* widgetClass = GetFirstNonGeneratedParent(widget->GetClass());
         FString name = widgetClass->GetName();
         FString headerFilePath = lookupTable->GetIncludeFilePathFor(name);
-        if (!includes.Contains(headerFilePath)) {
-            includes.Add(headerFilePath);
+
+        // If the header lookup is empty, check if it's a blueprint we made
+        if (headerFilePath.IsEmpty()) {
+            UBlueprint* blueprint = GetBlueprintForWidget(widget);
+            if (blueprint != nullptr) {
+                FBlueprintSourceModel entry = sourceMap->GetSourcePathsFor(blueprint);
+                if (entry.IsValid()) {
+                    FString gameSourceDir = FPaths::GameSourceDir();
+
+                    // Make the header file path be the relative path of the header to the module source directory
+                    FString relativeHeaderPath = entry.HeaderPath;
+                    if (!FPaths::MakePathRelativeTo(relativeHeaderPath, *gameSourceDir)) {
+                        UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not find a relative path for header file %s"), *entry.HeaderPath);
+                    } else {
+                        // Remove the first part of the path because that will be the module name
+                        int firstSlashIndex = -1;
+                        if (relativeHeaderPath.FindChar(TEXT('/'), firstSlashIndex)) {
+                            relativeHeaderPath = relativeHeaderPath.RightChop(firstSlashIndex + 1);
+                        }
+
+                        headerFilePath = relativeHeaderPath;
+                    }
+                }
+            }
+        }
+
+        if (!headerFilePath.IsEmpty()) {
+            if (!includes.Contains(headerFilePath)) {
+                includes.Add(headerFilePath);
+            }
+        } else {
+            UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not find the include path for %s. You may need to restart the editor."), *name);
         }
     }
 
@@ -356,7 +421,7 @@ FString CodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FStri
  * For each widget, this method detects if it is an automated name or a user-given
  * name and returns a list of just the widgets with user-given names. 
  */
-TArray<UWidget*> CodeGenerator::GetNamedWidgets(const TArray<UWidget*> widgets) {
+TArray<UWidget*> UCodeGenerator::GetNamedWidgets(const TArray<UWidget*> widgets) {
     TArray<UWidget*> namedWidgets;
 
     for (UWidget* widget : widgets) {
@@ -394,7 +459,7 @@ TArray<UWidget*> CodeGenerator::GetNamedWidgets(const TArray<UWidget*> widgets) 
     return namedWidgets;
 }
 
-UClass* CodeGenerator::GetFirstNonGeneratedParent(UClass* inputClass) {
+UClass* UCodeGenerator::GetFirstNonGeneratedParent(UClass* inputClass) {
     UClass* result = inputClass;
     while (result != nullptr && result->ClassGeneratedBy != nullptr) {
         result = result->GetSuperClass();
@@ -412,11 +477,22 @@ UClass* CodeGenerator::GetFirstNonGeneratedParent(UClass* inputClass) {
     return result;
 }
 
-UHeaderLookupTable* CodeGenerator::GetHeaderLookupTable() {
+UHeaderLookupTable* UCodeGenerator::GetHeaderLookupTable() {
     if (_headerLookupTable == nullptr) {
         _headerLookupTable = NewObject<UHeaderLookupTable>();
-        _headerLookupTable->AddToRoot();
         _headerLookupTable->InitTable();        
     }
     return _headerLookupTable;
+}
+
+/**
+ * Returns the blueprint that generated this widget or nullptr if it has none. 
+ */
+UBlueprint* UCodeGenerator::GetBlueprintForWidget(UWidget* widget) {  
+    UClass* widgetClass = widget->GetClass();
+    if (widgetClass != nullptr && widgetClass->ClassGeneratedBy != nullptr) {
+        return Cast<UBlueprint>(widgetClass->ClassGeneratedBy);
+    }
+
+    return nullptr;
 }
