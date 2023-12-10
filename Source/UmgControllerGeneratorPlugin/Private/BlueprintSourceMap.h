@@ -58,20 +58,22 @@ public:
     FBlueprintSourceModel GetSourcePathsFor(class UBlueprint* blueprint, bool absolutePaths = true);
 
     /**
-     * Saves the current mapping to disk. 
+     * Saves the current mapping to disk. Returns false if it failed.
      */
-    void SaveMapping();
+    bool SaveMapping();
 
     /**
      * If you move or rename a file, call UpdateMappings to try to correct them all.
      * Note: This assumes that the name of each file is the name of the class without
      *       the U prefix. If it's not, you will need to manually update the mapping in
      *       the BlueprintSourceMap.json file.
+     * @return Returns false if it failed to save the new mapping.
      */
-    void UpdateMappings(const TArray<UBlueprint*>& files, FString nameSuffix);
+    bool UpdateMappings(const TArray<UBlueprint*>& files, FString nameSuffix);
 
 private: // Methods
     FString GetFilePath();
+    bool DoesBlueprintExist(const FString& blueprintPath);
 
 private:
     UPROPERTY()

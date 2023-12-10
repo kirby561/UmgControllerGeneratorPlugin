@@ -102,9 +102,13 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateMappings(TArray<UObject*> inp
 
     UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
     sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
-	sourceMap->UpdateMappings(blueprints, TEXT("Controller"));
-
-	return true; // ?? TODO: Actually return if it succeeded
+	if (sourceMap->UpdateMappings(blueprints, TEXT("Controller"))) {
+		GetCodeGenerator()->ShowNotification(TEXT("Mappings updated."), ENotificationReason::Success);
+		return true;
+	} else {
+		GetCodeGenerator()->ShowNotification(TEXT("There was a problem updating the file."), ENotificationReason::Error);
+		return false;
+	}
 }
 
 UCodeGenerator* UUmgControllerGeneratorPluginBPLibrary::GetCodeGenerator() {

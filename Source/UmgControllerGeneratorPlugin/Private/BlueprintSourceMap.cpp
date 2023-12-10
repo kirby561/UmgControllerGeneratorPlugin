@@ -4,7 +4,8 @@
 #include "Misc/App.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
-#include "JsonObjectConverter.h" 
+#include "JsonObjectConverter.h"
+#include "Misc/PackageName.h"
 
 DEFINE_LOG_CATEGORY_STATIC(BlueprintSourceMapSub, Log, All)
 
@@ -96,25 +97,29 @@ FBlueprintSourceModel UBlueprintSourceMap::GetSourcePathsFor(UBlueprint* bluepri
     return result;
 }
 
-void UBlueprintSourceMap::SaveMapping() {
+bool UBlueprintSourceMap::SaveMapping() {
     FString jsonString = TEXT("");
     if (FJsonObjectConverter::UStructToJsonObjectString(_sourceMap, jsonString)) {
         FString filePath = GetFilePath();
         if (!FFileHelper::SaveStringToFile(jsonString, *filePath)) {
             UE_LOG(BlueprintSourceMapSub, Error, TEXT("Failed to save blueprint source mappings to file %s!"), *filePath);
+            return false;
         }
     } else {
         UE_LOG(BlueprintSourceMapSub, Error, TEXT("Failed to convert blueprint source mappings to json!"));
+        return false;
     }
+
+    return true;
 }
 
-void UBlueprintSourceMap::UpdateMappings(const TArray<UBlueprint*>& filesToUpdate, FString nameSuffix) {
+bool UBlueprintSourceMap::UpdateMappings(const TArray<UBlueprint*>& filesToUpdate, FString nameSuffix) {
     // Build a filemap of the source directory
     IFileManager& fileManager = IFileManager::Get();
     FFileMapBuilder mapBuilder;
     if (!fileManager.IterateDirectoryRecursively(*_projectSourceDirectory, mapBuilder)) {
         UE_LOG(BlueprintSourceMapSub, Error, TEXT("UpdateMappings: Could not iterate directory at %s"), *_projectSourceDirectory);
-        return;
+        return false;
     }
 
     for (UBlueprint* blueprint : filesToUpdate) {
@@ -182,13 +187,32 @@ void UBlueprintSourceMap::UpdateMappings(const TArray<UBlueprint*>& filesToUpdat
         }
     }
 
-    // ?? TODO: This would be a good place to make sure all the existing mappings still exist and
-    //          remove any that aren't valid anymore.
+    // Take this opportunity to check that all the blueprints in our mapping
+    // still exist as well and remove them from the table if they do not.
+    TArray<FString> keysToRemove;
+    for (auto& entry : _sourceMap.BlueprintSourceMap) {
+        if (!DoesBlueprintExist(entry.Key)) {
+            keysToRemove.Add(entry.Key);
+        }
+    }
+
+    for (const FString& key : keysToRemove) {
+        _sourceMap.BlueprintSourceMap.Remove(key);
+    }
 
     // Save
-    SaveMapping();
+    return SaveMapping();
 }
 
 FString UBlueprintSourceMap::GetFilePath() {
     return FPaths::Combine(_sourceMapDir, SourceMapFileName);
+}
+
+/**
+ * Returns true if a blueprint with the given reference path exists and false if it does not.
+ * @param blueprintPath The reference path to the blueprint (For example "/Game/SomeSubFolder/WBP_AnotherExample.WBP_AnotherExample")
+ */
+bool UBlueprintSourceMap::DoesBlueprintExist(const FString& blueprintPath) {
+    UBlueprint* blueprintObject = Cast<UBlueprint>(StaticLoadObject(UBlueprint::StaticClass(), nullptr, *blueprintPath));
+    return (blueprintObject != nullptr);
 }

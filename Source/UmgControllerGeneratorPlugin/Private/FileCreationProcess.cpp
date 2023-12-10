@@ -32,17 +32,6 @@ void UFileCreationProcess::Start(
         _headerPath = TEXT("");
         _onPatchingComplete = nullptr;
     }
-    
-    // ?? TODO: Maybe pass the window in so we know when it closed since there's no event to get notified
-    //          if cancel was pressed. This is what OpenAddToProjectDialog does internally:
-    /*
-	TSharedRef<SWindow> AddCodeWindow =
-		SNew(SWindow)
-		.Title( WindowTitle )
-		.ClientSize( WindowSize )
-		.SizingRule( ESizingRule::FixedSize )
-		.SupportsMinimize(false) .SupportsMaximize(false);
-    */
 
     // This is dumb but internally if the SNewClassDialog is given an empty prefix,
     // it will add "My" at the beginning of the class name, which we don't want.
