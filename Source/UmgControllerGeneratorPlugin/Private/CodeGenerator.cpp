@@ -9,6 +9,8 @@
 #include "WidgetBlueprint.h"
 #include "BlueprintSourceMap.h" 	
 #include "Modules/ModuleManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(CodeGeneratorSub, Log, All);
 
@@ -129,7 +131,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
             // Fill in the dynamic content
             FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileStr);
             if (updatedHeaderFileContents.IsEmpty()) {
-                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the header file at %s"), *headerFilePath);
+                ReportError(FString::Printf(TEXT("Failed to update the header file at %s"), *headerFilePath));
                 return;
             }
 
@@ -142,17 +144,17 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
             // Fill in the dynamic content
             FString updatedCppFileContents = UpdateCppFile(namedWidgets, cppFileStr);
             if (updatedCppFileContents.IsEmpty()) {
-                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the cpp file at %s"), *cppFilePath);
+                ReportError(FString::Printf(TEXT("Failed to update the cpp file at %s"), *cppFilePath));
                 return;
             }
 
             // Save both to a file
             if (!FFileHelper::SaveStringToFile(updatedHeaderFileContents, *headerFilePath)) {
-                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the header file to %s"), *headerFilePath);
+                ReportError(FString::Printf(TEXT("Failed to save the header file to %s"), *headerFilePath));
                 return;
             }
             if (!FFileHelper::SaveStringToFile(updatedCppFileContents, *cppFilePath)) {
-                UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the cpp file to %s"), *cppFilePath);
+                ReportError(FString::Printf(TEXT("Failed to save the cpp file to %s"), *cppFilePath));
                 return;
             }
 
@@ -202,12 +204,12 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
                                 );
 
                                 if (result != FEditorFileUtils::EPromptReturnCode::PR_Success) {
-                                    UE_LOG(CodeGeneratorSub, Warning, TEXT("There was an issue saving the blueprint after reparenting. You will need to reparent manually."));
+                                    ReportError(FString::Printf(TEXT("There was an issue saving the blueprint after reparenting. You will need to reparent manually.")));
                                 } else {
-                                    UE_LOG(CodeGeneratorSub, Display, TEXT("Reparenting complete."));
+                                    ShowSuccessMessage(TEXT("Class created and reparenting complete."));
                                 }
                             } else {
-                                UE_LOG(CodeGeneratorSub, Warning, TEXT("Could not find the generated class. You will need to reparent manually."));
+                                ReportError(FString::Printf(TEXT("Could not find the generated class. You will need to reparent manually.")));
                             }
 
                             _onPatchingComplete = nullptr;
@@ -242,16 +244,15 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
                     }
 
                     if (!succeeded) {
-                        UE_LOG(CodeGeneratorSub, Warning, TEXT("Failed to trigger a compile. You will need to reparent your class manually to the controller."));
+                        ReportError(FString::Printf(TEXT("Failed to trigger a compile. You will need to reparent your class manually to the controller.")));
                         _onPatchingComplete = nullptr;
                     }
                 }
             }
         },
-        [] (FString errorDescription) {
+        [this] (FString errorDescription) {
             if (!errorDescription.IsEmpty()) {
-                // ?? TODO: Show a dialog instead of just logging
-                UE_LOG(CodeGeneratorSub, Error, TEXT("Something went wrong creating the controller files: %s"), *errorDescription);
+                ReportError(FString::Printf(TEXT("Something went wrong creating the controller files: %s"), *errorDescription));
             } // Else it's just a cancel
         }
     );
@@ -264,37 +265,39 @@ void UCodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const
     // Load each file from disk, replace the areas between the markers with the new data
     FString headerFileContents;
     if (!FFileHelper::LoadFileToString(headerFileContents, *headerPath)) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to load the header file at %s"), *headerPath);
+        ReportError(FString::Printf(TEXT("Failed to load the header file at %s"), *headerPath));
         return;
     }
 
     FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileContents);
     if (updatedHeaderFileContents.IsEmpty()) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the header file at %s"), *headerPath);
+        ReportError(FString::Printf(TEXT("Failed to update the header file at %s"), *headerPath));
         return;
     }
 
     FString cppFileContents;
     if (!FFileHelper::LoadFileToString(cppFileContents, *cppPath)) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to load the cpp file at %s"), *cppPath);
+        ReportError(FString::Printf(TEXT("Failed to load the cpp file at %s"), *cppPath));
         return;
     }
 
     FString updatedCppFileContents = UpdateCppFile(namedWidgets, cppFileContents);
     if (updatedCppFileContents.IsEmpty()) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to update the cpp file at %s"), *cppPath);
+        ReportError(FString::Printf(TEXT("Failed to update the cpp file at %s"), *cppPath));
         return;
     }
 
     // Write both to a file
     if (!FFileHelper::SaveStringToFile(updatedHeaderFileContents, *headerPath)) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the header file to %s"), *headerPath);
+        ReportError(FString::Printf(TEXT("Failed to save the header file to %s"), *headerPath));
         return;
     }
     if (!FFileHelper::SaveStringToFile(updatedCppFileContents, *cppPath)) {
-        UE_LOG(CodeGeneratorSub, Error, TEXT("Failed to save the header file to %s"), *cppPath);
+        ReportError(FString::Printf(TEXT("Failed to save the header file to %s"), *cppPath));
         return;
     }
+
+    ShowSuccessMessage(FString::Printf(TEXT("%s updated."), *widgetName));
 }
 
 FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents) {
@@ -495,4 +498,34 @@ UBlueprint* UCodeGenerator::GetBlueprintForWidget(UWidget* widget) {
     }
 
     return nullptr;
+}
+
+/**
+ * Reports an issue to the user with a dialog that fades in/out.
+ * @param message The message to show.
+ * @param reason The reason for the notification.
+ */
+void UCodeGenerator::ShowNotification(FString message, ENotificationReason reason) {
+    FNotificationInfo info(FText::FromString(message));
+	info.FadeInDuration = 0.1f;
+	info.FadeOutDuration = 0.5f;
+	info.ExpireDuration = 5.0f;
+	info.bUseThrobber = false;
+	info.bUseSuccessFailIcons = true;
+	info.bUseLargeFont = true;
+	info.bFireAndForget = true;
+	info.bAllowThrottleWhenFrameRateIsLow = false;
+
+	auto notificationItem = FSlateNotificationManager::Get().AddNotification(info);
+    if (reason == ENotificationReason::Error) {
+	    notificationItem->SetCompletionState(SNotificationItem::ECompletionState::CS_Fail);
+        UE_LOG(CodeGeneratorSub, Error, TEXT("%s"), *message);
+    } else if (reason == ENotificationReason::Warning) {
+	    notificationItem->SetCompletionState(SNotificationItem::ECompletionState::CS_None);
+        UE_LOG(CodeGeneratorSub, Warning, TEXT("%s"), *message);
+    } else if (reason == ENotificationReason::Success) {
+	    notificationItem->SetCompletionState(SNotificationItem::ECompletionState::CS_Success);
+        UE_LOG(CodeGeneratorSub, Display, TEXT("%s"), *message);
+    }
+	notificationItem->ExpireAndFadeout();
 }

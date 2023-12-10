@@ -46,6 +46,7 @@ public class UmgControllerGeneratorPlugin : ModuleRules
 				"LiveCoding",
 				"BlueprintEditorLibrary",
 				"UnrealEd",
+				"EditorStyle",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

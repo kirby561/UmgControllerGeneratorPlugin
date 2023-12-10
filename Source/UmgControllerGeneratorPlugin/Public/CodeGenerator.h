@@ -4,6 +4,12 @@
 #include "Components/Widget.h"
 #include "CodeGenerator.generated.h"
 
+enum class ENotificationReason {
+    Success,
+    Warning,
+    Error
+};
+
 /**
  * Generates the initial cpp/h files for a UMG widget controller
  * and updates ones that are already created. 
@@ -15,6 +21,7 @@ class UCodeGenerator : public UObject {
 public:
     void CreateFiles(class UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
     void UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
+    void ShowNotification(FString message, ENotificationReason severity);
 
 private:
     FString UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents);
@@ -23,6 +30,9 @@ private:
     UClass* GetFirstNonGeneratedParent(UClass* inputClass);
     class UHeaderLookupTable* GetHeaderLookupTable();
     class UBlueprint* GetBlueprintForWidget(UWidget* widget);
+    void ShowSuccessMessage(FString message) { ShowNotification(message, ENotificationReason::Success); }
+    void ReportWarning(FString message) { ShowNotification(message, ENotificationReason::Warning); }
+    void ReportError(FString message) { ShowNotification(message, ENotificationReason::Error); }
 
     // Holds a lookup table from class name to header file
     UPROPERTY()
