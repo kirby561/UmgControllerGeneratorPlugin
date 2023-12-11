@@ -96,6 +96,11 @@ const FString WidgetSuffixMarker = TEXT("[WIDGET_SUFFIX]");
 const FString WidgetPathMarker = TEXT("[WIDGET_PATH]");
 const FString HeaderFileNameMarker = TEXT("[HEADER_FILE_NAME]");
 
+
+UCodeGenerator::UCodeGenerator(const FObjectInitializer& initializer) {
+    _config = CreateDefaultSubobject<UCodeGeneratorConfig>(TEXT("Config"));
+}
+
 void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
     if (_currentProcess == nullptr) {
         _currentProcess = NewObject<UFileCreationProcess>();
@@ -168,7 +173,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
             ILiveCodingModule* liveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
             if (liveCoding != nullptr && liveCoding->IsEnabledForSession())	{
                 if (liveCoding->AutomaticallyCompileNewClasses()) {
-                    if (_autoReparentBlueprintsEnabled) {
+                    if (IsAutoReparentingEnabled()) {
                         // Setup the patch complete callback and trigger a compile. This will let us reparent
                         // the class when the compile has finished in the blueprint so the user doesn't have to.
                         FString capturedClassName = className;

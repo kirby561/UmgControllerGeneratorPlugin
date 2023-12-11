@@ -47,7 +47,7 @@ void UUmgControllerGeneratorPluginBPLibrary::CreateUmgController(UObject* inputB
 		blueprint,
 		contentPath,
 		name,
-		TEXT("Controller"),
+		GetCodeGenerator()->GetClassSuffix(),
 		widgets,
 		headerPath,
 		cppPath
@@ -82,7 +82,7 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateUmgController(UObject* inputB
 	if (name.StartsWith(wbpPrefix)) {
 		name = name.RightChop(wbpPrefix.Len());
 	}
-	GetCodeGenerator()->UpdateFiles(name, TEXT("Controller"), widgets, entry.HeaderPath, entry.CppPath);
+	GetCodeGenerator()->UpdateFiles(name, GetCodeGenerator()->GetClassSuffix(), widgets, entry.HeaderPath, entry.CppPath);
 
 	return true;
 }
@@ -102,7 +102,7 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateMappings(TArray<UObject*> inp
 
     UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
     sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
-	if (sourceMap->UpdateMappings(blueprints, TEXT("Controller"))) {
+	if (sourceMap->UpdateMappings(blueprints, GetCodeGenerator()->GetClassSuffix())) {
 		GetCodeGenerator()->ShowNotification(TEXT("Mappings updated."), ENotificationReason::Success);
 		return true;
 	} else {

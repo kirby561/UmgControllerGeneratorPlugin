@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/Widget.h"
+#include "CodeGeneratorConfig.h"
 #include "CodeGenerator.generated.h"
 
 enum class ENotificationReason {
@@ -19,9 +20,14 @@ class UCodeGenerator : public UObject {
     GENERATED_BODY()
 
 public:
+    UCodeGenerator(const FObjectInitializer& initializer);
+
     void CreateFiles(class UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
     void UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
     void ShowNotification(FString message, ENotificationReason severity);
+
+    FString GetClassSuffix() { return _config->ClassSuffix; }
+    bool IsAutoReparentingEnabled() { return _config->EnableAutoReparenting; }
 
 private:
     FString UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents);
@@ -48,6 +54,6 @@ private:
     // live coding to complete before we reparent a generated class.
     std::function<void()> _onPatchingComplete = nullptr;
 
-    // True to enable auto blueprint reparenting.
-    bool _autoReparentBlueprintsEnabled = true;
+    UPROPERTY()
+    UCodeGeneratorConfig* _config = nullptr;
 };
