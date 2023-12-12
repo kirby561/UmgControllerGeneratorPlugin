@@ -101,6 +101,18 @@ bool UBlueprintSourceMap::SaveMapping() {
     FString jsonString = TEXT("");
     if (FJsonObjectConverter::UStructToJsonObjectString(_sourceMap, jsonString)) {
         FString filePath = GetFilePath();
+
+        // Make sure the directory exists and create it if it doesn't
+        FString directory = FPaths::GetPath(filePath);
+        if (!FPaths::DirectoryExists(directory)) {
+            IFileManager& fileManager = IFileManager::Get();
+
+            if (!fileManager.MakeDirectory(*directory, true)) {
+                UE_LOG(BlueprintSourceMapSub, Error, TEXT("Failed to save blueprint source mappings to file. The directory did not exist and we could not create it: %s!"), *filePath);
+                return false;
+            }
+        }
+
         if (!FFileHelper::SaveStringToFile(jsonString, *filePath)) {
             UE_LOG(BlueprintSourceMapSub, Error, TEXT("Failed to save blueprint source mappings to file %s!"), *filePath);
             return false;

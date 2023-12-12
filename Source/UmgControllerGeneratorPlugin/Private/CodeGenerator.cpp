@@ -165,7 +165,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
 
             // Update the header map
             UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-            sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+            sourceMap->LoadMapping(FPaths::GameSourceDir(), GetBlueprintSourceFilePath());
             sourceMap->AddMapping(blueprint, headerFilePath, cppFilePath);
             sourceMap->SaveMapping();
 
@@ -413,7 +413,7 @@ FString UCodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FStr
     UHeaderLookupTable* lookupTable = GetHeaderLookupTable();
     lookupTable->InitTable();
     UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-    sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+    sourceMap->LoadMapping(FPaths::GameSourceDir(), GetBlueprintSourceFilePath());
     TSet<FString> includes;
     for (UWidget* widget : namedWidgets) {
         UClass* widgetClass = GetFirstNonGeneratedParent(widget->GetClass());
@@ -573,4 +573,11 @@ void UCodeGenerator::ShowNotification(FString message, ENotificationReason reaso
         UE_LOG(CodeGeneratorSub, Display, TEXT("%s"), *message);
     }
 	notificationItem->ExpireAndFadeout();
+}
+
+/**
+ * @return Returns the absolute path to the blueprint source file.
+ */
+FString UCodeGenerator::GetBlueprintSourceFilePath() {
+    return FPaths::Combine(FPaths::ProjectDir(), GetBlueprintSourceDirectory());
 }

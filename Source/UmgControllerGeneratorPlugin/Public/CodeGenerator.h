@@ -27,6 +27,8 @@ public:
     void ShowNotification(FString message, ENotificationReason severity);
 
     FString GetClassSuffix() { return _config->ClassSuffix; }
+    FString GetBlueprintSourceDirectory() { return _config->BlueprintSourceMapDirectory; }
+    FString GetBlueprintSourceFilePath();
     bool IsAutoReparentingEnabled() { return _config->EnableAutoReparenting; }
 
 private:

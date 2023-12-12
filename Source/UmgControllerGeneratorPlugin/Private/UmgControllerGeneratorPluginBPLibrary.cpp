@@ -63,7 +63,7 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateUmgController(UObject* inputB
 	}
 
     UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-    sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+    sourceMap->LoadMapping(FPaths::GameSourceDir(), GetCodeGenerator()->GetBlueprintSourceFilePath());
 	FBlueprintSourceModel entry = sourceMap->GetSourcePathsFor(blueprint);
 	if (!entry.IsValid()) {
 		UE_LOG(UmgControllerGeneratorPluginSub, Error, TEXT("No source map entry for %s. Fix the mapping or try Update Mappings."), *blueprint->GetPathName());
@@ -111,7 +111,7 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateMappings(TArray<UObject*> inp
 	}
 
     UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-    sourceMap->LoadMapping(FPaths::GameSourceDir(), FPaths::ProjectDir());
+    sourceMap->LoadMapping(FPaths::GameSourceDir(), GetCodeGenerator()->GetBlueprintSourceFilePath());
 	if (sourceMap->UpdateMappings(blueprints, GetCodeGenerator()->GetClassSuffix())) {
 		GetCodeGenerator()->ShowNotification(TEXT("Mappings updated."), ENotificationReason::Success);
 		return true;

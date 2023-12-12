@@ -9,7 +9,10 @@ class UCodeGeneratorConfig : public UObject {
 
 public:
     UPROPERTY(Config, EditAnywhere, Category = Settings)
-    FString ClassSuffix = FString(TEXT("Controller"));
+    FString ClassSuffix = TEXT("Controller");
+
+    UPROPERTY(Config, EditAnywhere, Category = Settings)
+    FString BlueprintSourceMapDirectory = TEXT("");
 
     UPROPERTY(Config, EditAnywhere, Category = Settings)
     bool EnableAutoReparenting = true;
