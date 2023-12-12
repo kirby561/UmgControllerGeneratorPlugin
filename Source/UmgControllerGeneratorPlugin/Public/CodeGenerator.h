@@ -23,14 +23,14 @@ public:
     UCodeGenerator(const FObjectInitializer& initializer);
 
     void CreateFiles(class UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
-    void UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
+    void UpdateFiles(FString widgetName, FString widgetSuffix, FString widgetPath, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath);
     void ShowNotification(FString message, ENotificationReason severity);
 
     FString GetClassSuffix() { return _config->ClassSuffix; }
     bool IsAutoReparentingEnabled() { return _config->EnableAutoReparenting; }
 
 private:
-    FString UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents);
+    FString UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents, FString blueprintReferencePath);
     FString UpdateCppFile(const TArray<UWidget*>& namedWidgets, FString cppContents);
     TArray<UWidget*> GetNamedWidgets(const TArray<UWidget*> widgets);
     UClass* GetFirstNonGeneratedParent(UClass* inputClass);

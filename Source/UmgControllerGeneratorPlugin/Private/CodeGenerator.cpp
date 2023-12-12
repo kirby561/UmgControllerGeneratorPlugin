@@ -95,7 +95,7 @@ const FString WidgetNameMarker = TEXT("[WIDGET_NAME]");
 const FString WidgetSuffixMarker = TEXT("[WIDGET_SUFFIX]");
 const FString WidgetPathMarker = TEXT("[WIDGET_PATH]");
 const FString HeaderFileNameMarker = TEXT("[HEADER_FILE_NAME]");
-
+const FString WidgetLineMarker = TEXT("static const inline FString WidgetPath = ");
 
 UCodeGenerator::UCodeGenerator(const FObjectInitializer& initializer) {
     _config = CreateDefaultSubobject<UCodeGeneratorConfig>(TEXT("Config"));
@@ -134,7 +134,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
             headerFileStr = headerFileStr.Replace(*HeaderFileNameMarker, *headerFileName);
 
             // Fill in the dynamic content
-            FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileStr);
+            FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileStr, widgetPath);
             if (updatedHeaderFileContents.IsEmpty()) {
                 ReportError(FString::Printf(TEXT("Failed to update the header file at %s"), *headerFilePath));
                 return;
@@ -263,7 +263,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
     );
 }
 
-void UCodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
+void UCodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, FString blueprintPath, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {
     // Get the widgets that are not the default name
     TArray<UWidget*> namedWidgets = GetNamedWidgets(widgets);
 
@@ -274,7 +274,7 @@ void UCodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const
         return;
     }
 
-    FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileContents);
+    FString updatedHeaderFileContents = UpdateHeaderFile(namedWidgets, headerFileContents, blueprintPath);
     if (updatedHeaderFileContents.IsEmpty()) {
         ReportError(FString::Printf(TEXT("Failed to update the header file at %s"), *headerPath));
         return;
@@ -305,7 +305,7 @@ void UCodeGenerator::UpdateFiles(FString widgetName, FString widgetSuffix, const
     ShowSuccessMessage(FString::Printf(TEXT("%s updated."), *widgetName));
 }
 
-FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents) {
+FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents, FString blueprintReferencePath) {
     FString result;
 
     // Find the different sections of the file
@@ -342,9 +342,49 @@ FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, F
         isFirst = false;
     }
 
-    // Finish off the file
+    // Write the end section
     result.Append(PropertiesSectionEndMarker + TEXT("\n"));
-    result.Append(headerContents.RightChop(propertiesSectionEndIndex + PropertiesSectionEndMarker.Len() + 1));
+
+    int generatedLoaderStartIndex = headerContents.Find(LoaderSectionStartMarker);
+    int generatedLoaderEndIndex = headerContents.Find(LoaderSectionEndMarker);
+    if (generatedLoaderStartIndex != INDEX_NONE && generatedLoaderEndIndex != INDEX_NONE) {
+        // Append what was between the end of the property 
+        // section and the beginning of the loading section
+        int startIndex = propertiesSectionEndIndex + PropertiesSectionEndMarker.Len() + 1;
+        int count = generatedLoaderStartIndex - startIndex;
+        FString contentsBetweenPropertiesAndLoader = headerContents.Mid(startIndex, count);
+        result.Append(contentsBetweenPropertiesAndLoader);
+
+        startIndex = generatedLoaderStartIndex;
+        count = (generatedLoaderEndIndex + LoaderSectionEndMarker.Len() + 1) - startIndex;
+        FString currentLoaderSection = headerContents.Mid(startIndex, count);
+
+        // Rebuild the loader section with the current blueprint path
+        int widgetLineStartIndex = currentLoaderSection.Find(WidgetLineMarker);
+        int endOfLineIndex = INDEX_NONE;
+        if (!currentLoaderSection.RightChop(widgetLineStartIndex + 1).FindChar(TEXT('\n'), endOfLineIndex)) {
+            UE_LOG(CodeGeneratorSub, Error, TEXT("No loader section start found in header"));
+            return headerContents;
+        }
+        endOfLineIndex += widgetLineStartIndex + 1;
+        FString newLoaderSection = currentLoaderSection.Left(widgetLineStartIndex);
+        newLoaderSection.Append(WidgetLineMarker);
+        newLoaderSection.Append("TEXT(\"" + blueprintReferencePath + "\");\n");
+        FString remainingLoaderSection = currentLoaderSection.RightChop(endOfLineIndex + 1);
+        newLoaderSection.Append(remainingLoaderSection);
+
+        // Append the new loader section to the result
+        result.Append(newLoaderSection);
+
+        // Add the rest of the file
+        FString afterLoaderSection = headerContents.RightChop(generatedLoaderEndIndex + LoaderSectionEndMarker.Len() + 1);
+        result.Append(afterLoaderSection);
+    } else {
+        UE_LOG(CodeGeneratorSub, Error, TEXT("No loader section start found in header"));
+
+        // Just write whatever was there before and don't update the loading section.
+        result.Append(headerContents.RightChop(propertiesSectionEndIndex + PropertiesSectionEndMarker.Len() + 1));
+    }
 
     return result;
 }

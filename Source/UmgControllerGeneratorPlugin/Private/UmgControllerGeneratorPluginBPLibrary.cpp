@@ -82,7 +82,17 @@ bool UUmgControllerGeneratorPluginBPLibrary::UpdateUmgController(UObject* inputB
 	if (name.StartsWith(wbpPrefix)) {
 		name = name.RightChop(wbpPrefix.Len());
 	}
-	GetCodeGenerator()->UpdateFiles(name, GetCodeGenerator()->GetClassSuffix(), widgets, entry.HeaderPath, entry.CppPath);
+
+	// Get the widget path name.
+	FString contentPath = blueprint->GetPathName();
+
+	// We don't need the extension
+	int dotIndex = -1;
+	if (contentPath.FindLastChar(TEXT('.'), dotIndex)) {
+		contentPath = contentPath.Left(dotIndex);
+	}
+
+	GetCodeGenerator()->UpdateFiles(name, GetCodeGenerator()->GetClassSuffix(), contentPath, widgets, entry.HeaderPath, entry.CppPath);
 
 	return true;
 }
