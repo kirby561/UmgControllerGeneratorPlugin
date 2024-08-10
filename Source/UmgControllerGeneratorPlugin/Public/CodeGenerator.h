@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include <functional>
 #include "Components/Widget.h"
 #include "CodeGeneratorConfig.h"
 #include "CodeGenerator.generated.h"
