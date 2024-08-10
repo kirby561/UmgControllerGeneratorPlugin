@@ -518,7 +518,7 @@ UClass* UCodeGenerator::GetFirstNonGeneratedParent(UClass* inputClass) {
         // This is odd; there are no non-generated classes?
         // Just use the original class and let the user figure it out.
         // We hate our users here.
-        UE_LOG(CodeGeneratorSub, Warning, TEXT("%s has no non-generated super classes! Using the base one."));
+        UE_LOG(CodeGeneratorSub, Warning, TEXT("%s has no non-generated super classes! Using the base one."), *inputClass->GetName());
         result = inputClass;
     }
 
