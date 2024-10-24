@@ -124,7 +124,7 @@ void UFileCreationProcess::OnFileAdded(const FString& className, const FString& 
         };
     } else {
         // Live coding isn't enabled so we can callback right away
-        _onFilesCreated(_headerPath, _cppPath);
+        _onFilesCreated(headerPath, cppPath);
     }
 }
 
