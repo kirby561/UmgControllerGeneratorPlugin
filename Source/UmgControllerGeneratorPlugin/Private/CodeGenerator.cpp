@@ -510,6 +510,7 @@ TArray<UWidget*> UCodeGenerator::GetNamedWidgets(const TArray<UWidget*> widgets)
 
 UClass* UCodeGenerator::GetFirstNonGeneratedParent(UClass* inputClass) {
     UClass* result = inputClass;
+    if (result == nullptr) return result;
     while (result != nullptr && result->ClassGeneratedBy != nullptr) {
         result = result->GetSuperClass();
     }
@@ -519,7 +520,9 @@ UClass* UCodeGenerator::GetFirstNonGeneratedParent(UClass* inputClass) {
         // This is odd; there are no non-generated classes?
         // Just use the original class and let the user figure it out.
         // We hate our users here.
-        UE_LOG(CodeGeneratorSub, Warning, TEXT("%s has no non-generated super classes! Using the base one."));
+        FString Name;
+        inputClass->GetName(Name);
+        UE_LOG(CodeGeneratorSub, Warning, TEXT("%s has no non-generated super classes! Using the base one."), *Name);
         result = inputClass;
     }
 
