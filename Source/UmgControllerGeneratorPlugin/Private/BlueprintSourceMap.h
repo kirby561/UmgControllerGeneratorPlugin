@@ -79,7 +79,7 @@ private:
     UPROPERTY()
     FBlueprintSourceMapModel _sourceMap;
 
-    FString _projectSourceDirectory;
+    FString _projectRootDirectory;
     FString _sourceMapDir;
 
     // This class' mapping is serialized to the following file in the plugin directory.

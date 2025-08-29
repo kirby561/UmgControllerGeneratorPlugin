@@ -166,7 +166,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
 
             // Update the header map
             UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-            sourceMap->LoadMapping(FPaths::GameSourceDir(), GetBlueprintSourceFilePath());
+            sourceMap->LoadMapping(FPaths::ProjectDir(), GetBlueprintSourceFilePath());
             sourceMap->AddMapping(blueprint, headerFilePath, cppFilePath);
             sourceMap->SaveMapping();
 
@@ -414,7 +414,7 @@ FString UCodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FStr
     UHeaderLookupTable* lookupTable = GetHeaderLookupTable();
     lookupTable->InitTable();
     UBlueprintSourceMap* sourceMap = NewObject<UBlueprintSourceMap>();
-    sourceMap->LoadMapping(FPaths::GameSourceDir(), GetBlueprintSourceFilePath());
+    sourceMap->LoadMapping(FPaths::ProjectDir(), GetBlueprintSourceFilePath());
     TSet<FString> includes;
     for (UWidget* widget : namedWidgets) {
         UClass* widgetClass = GetFirstNonGeneratedParent(widget->GetClass());
