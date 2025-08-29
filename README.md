@@ -34,4 +34,4 @@ Notes:
 
 	- Your C++ source files need to be named the same as your Widget Blueprints (plus the configurable ClassSuffix and minus the WBP_ prefix) in order for UpdateMappings to work. For example, if your Widget Blueprint is named "WBP_Menu" and the suffix is "Controller", your h/cpp files need to be named MenuController with a class called UMenuController inside.
 	
-	- The BlueprintSourceMap.json file should be source controlled so other team members can update as well. The paths are relative to the project's source directory. The path to the directory this file is in can be configured using BlueprintSourceMapDirectory. This path is relative to the project directory and defaults to the root.
+	- The BlueprintSourceMap.json file should be source controlled so other team members can update as well. The paths are relative to the project directory. The path to the directory this file is in can be configured using BlueprintSourceMapDirectory. This path is relative to the project directory and defaults to the root.
