@@ -31,7 +31,7 @@ public:
 };
 
 void UBlueprintSourceMap::LoadMapping(FString projectSourceDir, FString sourceMapDir) {
-    _projectSourceDirectory = projectSourceDir;
+    _projectRootDirectory = projectSourceDir;
     _sourceMapDir = sourceMapDir;
 
     FString expectedFilePath = GetFilePath();
@@ -56,13 +56,13 @@ void UBlueprintSourceMap::LoadMapping(FString projectSourceDir, FString sourceMa
 
 void UBlueprintSourceMap::AddMapping(UBlueprint* blueprint, FString fullHeaderPath, FString fullCppPath) {
     FString relativeHeaderPath = fullHeaderPath;
-    if (!FPaths::MakePathRelativeTo(relativeHeaderPath, *_projectSourceDirectory)) {
+    if (!FPaths::MakePathRelativeTo(relativeHeaderPath, *_projectRootDirectory)) {
         UE_LOG(BlueprintSourceMapSub, Error, TEXT("Could not find a relative path for header file %s"), *fullHeaderPath);
         return;
     }
 
     FString relativeCppPath = fullCppPath;
-    if (!FPaths::MakePathRelativeTo(relativeCppPath, *_projectSourceDirectory)) {
+    if (!FPaths::MakePathRelativeTo(relativeCppPath, *_projectRootDirectory)) {
         UE_LOG(BlueprintSourceMapSub, Error, TEXT("Could not find a relative path for CPP file %s"), *fullCppPath);
         return;
     }
@@ -87,8 +87,8 @@ FBlueprintSourceModel UBlueprintSourceMap::GetSourcePathsFor(UBlueprint* bluepri
         result = _sourceMap.BlueprintSourceMap[blueprintPath];
 
         if (absolutePaths) {
-            result.HeaderPath = FPaths::Combine(_projectSourceDirectory, result.HeaderPath);
-            result.CppPath = FPaths::Combine(_projectSourceDirectory, result.CppPath);
+            result.HeaderPath = FPaths::Combine(_projectRootDirectory, result.HeaderPath);
+            result.CppPath = FPaths::Combine(_projectRootDirectory, result.CppPath);
         }
     } else {
         UE_LOG(BlueprintSourceMapSub, Warning, TEXT("Blueprint source map has no entry for %s"), *blueprintPath);
@@ -129,8 +129,8 @@ bool UBlueprintSourceMap::UpdateMappings(const TArray<UBlueprint*>& filesToUpdat
     // Build a filemap of the source directory
     IFileManager& fileManager = IFileManager::Get();
     FFileMapBuilder mapBuilder;
-    if (!fileManager.IterateDirectoryRecursively(*_projectSourceDirectory, mapBuilder)) {
-        UE_LOG(BlueprintSourceMapSub, Error, TEXT("UpdateMappings: Could not iterate directory at %s"), *_projectSourceDirectory);
+    if (!fileManager.IterateDirectoryRecursively(*_projectRootDirectory, mapBuilder)) {
+        UE_LOG(BlueprintSourceMapSub, Error, TEXT("UpdateMappings: Could not iterate directory at %s"), *_projectRootDirectory);
         return false;
     }
 
@@ -154,13 +154,13 @@ bool UBlueprintSourceMap::UpdateMappings(const TArray<UBlueprint*>& filesToUpdat
         if (_sourceMap.BlueprintSourceMap.Contains(pathName)) {
             FBlueprintSourceModel sourcePaths = _sourceMap.BlueprintSourceMap[pathName];
 
-            FString fullHeaderPath = FPaths::Combine(_projectSourceDirectory, sourcePaths.HeaderPath);
+            FString fullHeaderPath = FPaths::Combine(_projectRootDirectory, sourcePaths.HeaderPath);
             if (fileManager.FileExists(*fullHeaderPath)) {
                 headerExists = true;
                 newPaths.HeaderPath = sourcePaths.HeaderPath;
             }
 
-            FString fullCppPath = FPaths::Combine(_projectSourceDirectory, sourcePaths.CppPath);
+            FString fullCppPath = FPaths::Combine(_projectRootDirectory, sourcePaths.CppPath);
             if (fileManager.FileExists(*fullCppPath)) {
                 cppExists = true;
                 newPaths.CppPath = sourcePaths.CppPath;
@@ -173,7 +173,7 @@ bool UBlueprintSourceMap::UpdateMappings(const TArray<UBlueprint*>& filesToUpdat
             if (!headerExists) {
                 if (mapBuilder.FileMap.Contains(expectedHeaderName)) {
                     FString newHeaderPath = mapBuilder.FileMap[expectedHeaderName];
-                    if (!FPaths::MakePathRelativeTo(newHeaderPath, *_projectSourceDirectory)) {
+                    if (!FPaths::MakePathRelativeTo(newHeaderPath, *_projectRootDirectory)) {
                         UE_LOG(BlueprintSourceMapSub, Error, TEXT("UpdateMappings: Could not find a relative path for header file %s"), *newHeaderPath);
                         continue;
                     }
@@ -184,7 +184,7 @@ bool UBlueprintSourceMap::UpdateMappings(const TArray<UBlueprint*>& filesToUpdat
             if (!cppExists) {
                 if (mapBuilder.FileMap.Contains(expectedCppName)) {
                     FString newCppPath = mapBuilder.FileMap[expectedCppName];
-                    if (!FPaths::MakePathRelativeTo(newCppPath, *_projectSourceDirectory)) {
+                    if (!FPaths::MakePathRelativeTo(newCppPath, *_projectRootDirectory)) {
                         UE_LOG(BlueprintSourceMapSub, Error, TEXT("UpdateMappings: Could not find a relative path for cpp file %s"), *newCppPath);
                         continue;
                     }
