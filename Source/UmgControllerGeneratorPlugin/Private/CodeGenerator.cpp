@@ -34,12 +34,12 @@ public: // Create Method\n\
     static U[WIDGET_NAME][WIDGET_SUFFIX]* CreateInstance(APlayerController* playerController);\n\
 \n\
 public: // Properties\n\
-// ---------- Generated Properties Section ---------- //\n\
+#pragma region Generated Properties Section\n\
 //             (Don't modify manually)             //\n\
-// ---------- End Generated Properties Section ---------- //\n\
+#pragma endregion Generated Properties Section\n\
 };\n\
 \n\
-// ---------- Generated Loader Section ---------- //\n\
+#pragma region Generated Loader Section\n\
 //             (Don't modify manually)            //\n\
 UCLASS()\n\
 class U[WIDGET_NAME]Loader : public UObject {\n\
@@ -53,22 +53,22 @@ public:\n\
     UClass* WidgetTemplate = nullptr;\n\
     static const inline FString WidgetPath = TEXT(\"[WIDGET_PATH]\");\n\
 };\n\
-// ---------- End Generated Loader Section ---------- //\n\
+#pragma endregion Generated Loader Section\n\
 ");
 
 const FString CppFileTemplate = TEXT("\
 #include \"[HEADER_FILE_NAME].h\"\n\
 \n\
-// ---------- Generated Includes Section ---------- //\n\
+#pragma region Generated Includes Section\n\
 //             (Don't modify manually)              //\n\
 \n\
-// ---------- End Generated Includes Section ---------- //\n\
+#pragma endregion Generated Includes Section\n\
 \n\
 U[WIDGET_NAME][WIDGET_SUFFIX]::U[WIDGET_NAME][WIDGET_SUFFIX](const FObjectInitializer& objectInitializer) : UUserWidget(objectInitializer) {\n\
 \n\
 }\n\
 \n\
-// ---------- Generated Methods Section ---------- //\n\
+#pragma region Generated Methods Section\n\
 //             (Don't modify manually)             //\n\
 U[WIDGET_NAME][WIDGET_SUFFIX]* U[WIDGET_NAME][WIDGET_SUFFIX]::CreateInstance(APlayerController* playerController) {\n\
     U[WIDGET_NAME]Loader* loader = NewObject<U[WIDGET_NAME]Loader>(playerController);\n\
@@ -79,17 +79,17 @@ U[WIDGET_NAME]Loader::U[WIDGET_NAME]Loader() {\n\
     static ConstructorHelpers::FClassFinder<UUserWidget> widgetTemplateFinder(*WidgetPath);\n\
     WidgetTemplate = widgetTemplateFinder.Class;\n\
 }\n\
-// ---------- End Generated Methods Section ---------- //\n\
+#pragma endregion Generated Methods Section\n\
 ");
 
-const FString PropertiesSectionStartMarker = TEXT("// ---------- Generated Properties Section ---------- //");
-const FString PropertiesSectionEndMarker = TEXT("// ---------- End Generated Properties Section ---------- //");
-const FString IncludeSectionStartMarker = TEXT("// ---------- Generated Includes Section ---------- //");
-const FString IncludeSectionEndMarker = TEXT("// ---------- End Generated Includes Section ---------- //");
-const FString MethodSectionStartMarker = TEXT("// ---------- Generated Methods Section ---------- //");
-const FString MethodSectionEndMarker = TEXT("// ---------- End Generated Methods Section ---------- //");
-const FString LoaderSectionStartMarker = TEXT("// ---------- Generated Loader Section ---------- //");
-const FString LoaderSectionEndMarker = TEXT("// ---------- End Generated Loader Section ---------- //");
+const FString PropertiesSectionStartMarker = TEXT("#pragma region Generated Properties Section");
+const FString PropertiesSectionEndMarker = TEXT("#pragma endregion Generated Properties Section");
+const FString IncludeSectionStartMarker = TEXT("#pragma region Generated Includes Section");
+const FString IncludeSectionEndMarker = TEXT("#pragma endregion Generated Includes Section");
+const FString MethodSectionStartMarker = TEXT("#pragma region Generated Methods Section");
+const FString MethodSectionEndMarker = TEXT("#pragma endregion Generated Methods Section");
+const FString LoaderSectionStartMarker = TEXT("#pragma region Generated Loader Section");
+const FString LoaderSectionEndMarker = TEXT("#pragma endregion Generated Loader Section");
 const FString DoNotModifyComment = TEXT("//             (Don't modify manually)              //");
 const FString BindWidgetLabel = TEXT("UPROPERTY(BlueprintReadOnly, meta = (BindWidget))");
 const FString WidgetNameMarker = TEXT("[WIDGET_NAME]");
