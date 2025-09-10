@@ -15,7 +15,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(CodeGeneratorSub, Log, All);
 
-const FString HeaderFileTemplate = TEXT("\
+const FString MarkedHeaderFileTemplate = TEXT("\
 #pragma once\n\
 \n\
 #include \"CoreMinimal.h\"\n\
@@ -34,12 +34,12 @@ public: // Create Method\n\
     static U[WIDGET_NAME][WIDGET_SUFFIX]* CreateInstance(APlayerController* playerController);\n\
 \n\
 public: // Properties\n\
-#pragma region Generated Properties Section\n\
+[START_GENERATED_PROPERTIES_SECTION]\n\
 //             (Don't modify manually)             //\n\
-#pragma endregion Generated Properties Section\n\
+[END_GENERATED_PROPERTIES_SECTION]\n\
 };\n\
 \n\
-#pragma region Generated Loader Section\n\
+[START_GENERATED_LOADER_SECTION]\n\
 //             (Don't modify manually)            //\n\
 UCLASS()\n\
 class U[WIDGET_NAME]Loader : public UObject {\n\
@@ -53,22 +53,22 @@ public:\n\
     UClass* WidgetTemplate = nullptr;\n\
     static const inline FString WidgetPath = TEXT(\"[WIDGET_PATH]\");\n\
 };\n\
-#pragma endregion Generated Loader Section\n\
+[END_GENERATED_LOADER_SECTION]\n\
 ");
 
-const FString CppFileTemplate = TEXT("\
+const FString MarkedCppFileTemplate = TEXT("\
 #include \"[HEADER_FILE_NAME].h\"\n\
 \n\
-#pragma region Generated Includes Section\n\
+[START_GENERATED_INCLUDES_SECTION]\n\
 //             (Don't modify manually)              //\n\
 \n\
-#pragma endregion Generated Includes Section\n\
+[END_GENERATED_INCLUDES_SECTION]\n\
 \n\
 U[WIDGET_NAME][WIDGET_SUFFIX]::U[WIDGET_NAME][WIDGET_SUFFIX](const FObjectInitializer& objectInitializer) : UUserWidget(objectInitializer) {\n\
 \n\
 }\n\
 \n\
-#pragma region Generated Methods Section\n\
+[START_GENERATED_METHODS_SECTION]\n\
 //             (Don't modify manually)             //\n\
 U[WIDGET_NAME][WIDGET_SUFFIX]* U[WIDGET_NAME][WIDGET_SUFFIX]::CreateInstance(APlayerController* playerController) {\n\
     U[WIDGET_NAME]Loader* loader = NewObject<U[WIDGET_NAME]Loader>(playerController);\n\
@@ -79,17 +79,17 @@ U[WIDGET_NAME]Loader::U[WIDGET_NAME]Loader() {\n\
     static ConstructorHelpers::FClassFinder<UUserWidget> widgetTemplateFinder(*WidgetPath);\n\
     WidgetTemplate = widgetTemplateFinder.Class;\n\
 }\n\
-#pragma endregion Generated Methods Section\n\
+[END_GENERATED_METHODS_SECTION]\n\
 ");
 
-const FString PropertiesSectionStartMarker = TEXT("#pragma region Generated Properties Section");
-const FString PropertiesSectionEndMarker = TEXT("#pragma endregion Generated Properties Section");
-const FString IncludeSectionStartMarker = TEXT("#pragma region Generated Includes Section");
-const FString IncludeSectionEndMarker = TEXT("#pragma endregion Generated Includes Section");
-const FString MethodSectionStartMarker = TEXT("#pragma region Generated Methods Section");
-const FString MethodSectionEndMarker = TEXT("#pragma endregion Generated Methods Section");
-const FString LoaderSectionStartMarker = TEXT("#pragma region Generated Loader Section");
-const FString LoaderSectionEndMarker = TEXT("#pragma endregion Generated Loader Section");
+const FString PropertiesSectionStartMarker = TEXT("[START_GENERATED_PROPERTIES_SECTION]");
+const FString PropertiesSectionEndMarker = TEXT("[END_GENERATED_PROPERTIES_SECTION]");
+const FString LoaderSectionStartMarker = TEXT("[START_GENERATED_LOADER_SECTION]");
+const FString LoaderSectionEndMarker = TEXT("[END_GENERATED_LOADER_SECTION]");
+const FString IncludeSectionStartMarker = TEXT("[START_GENERATED_INCLUDES_SECTION]");
+const FString IncludeSectionEndMarker = TEXT("[END_GENERATED_INCLUDES_SECTION]");
+const FString MethodSectionStartMarker = TEXT("[START_GENERATED_METHODS_SECTION]");
+const FString MethodSectionEndMarker = TEXT("[END_GENERATED_METHODS_SECTION]");
 const FString DoNotModifyComment = TEXT("//             (Don't modify manually)              //");
 const FString BindWidgetLabel = TEXT("UPROPERTY(BlueprintReadOnly, meta = (BindWidget))");
 const FString WidgetNameMarker = TEXT("[WIDGET_NAME]");
@@ -100,6 +100,46 @@ const FString WidgetLineMarker = TEXT("static const inline FString WidgetPath = 
 
 UCodeGenerator::UCodeGenerator(const FObjectInitializer& initializer) {
     _config = CreateDefaultSubobject<UCodeGeneratorConfig>(TEXT("Config"));
+    HeaderFileTemplate = FillHeaderTemplateSections(MarkedHeaderFileTemplate);
+	CppFileTemplate = FillCppTemplateSections(MarkedCppFileTemplate);
+}
+
+/**
+ * Replaces each occurrence of a marker (key) with its value in the source string.
+ * @param source The source text (template).
+ * @param sections Array of <marker, value> pairs to replace.
+ * @return The modified string.
+ */
+FString UCodeGenerator::ReplaceSections(const FString& source, const TSections& sections)
+{
+    FString result = source;
+    for (const TSection& pair : sections)
+    {
+        result = result.Replace(*pair.Key, *pair.Value, ESearchCase::CaseSensitive);
+    }
+    return result;
+}
+
+FString UCodeGenerator::FillHeaderTemplateSections(const FString headerTemplate) {
+	TSections headerSectionsValues = {
+		{ PropertiesSectionStartMarker, *GetGeneratedPropertiesPrefix() },
+		{ PropertiesSectionEndMarker, *GetGeneratedPropertiesSuffix() },
+		{ LoaderSectionStartMarker, *GetGeneratedLoaderPrefix() },
+		{ LoaderSectionEndMarker, *GetGeneratedLoaderSuffix() }
+	};
+
+	return ReplaceSections(headerTemplate, headerSectionsValues);
+}
+
+FString UCodeGenerator::FillCppTemplateSections(const FString cppTemplate) {
+	TSections cppSectionsValues = {
+		{ IncludeSectionStartMarker, *GetGeneratedIncludesPrefix() },
+		{ IncludeSectionEndMarker, *GetGeneratedIncludesSuffix() },
+		{ MethodSectionStartMarker, *GetGeneratedMethodsPrefix() },
+		{ MethodSectionEndMarker, *GetGeneratedMethodsSuffix() }
+	};
+
+	return ReplaceSections(cppTemplate, cppSectionsValues);
 }
 
 void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath, FString widgetName, FString widgetSuffix, const TArray<UWidget*>& widgets, FString headerPath, FString cppPath) {

@@ -5,6 +5,8 @@
 #include "CodeGeneratorConfig.h"
 #include "CodeGenerator.generated.h"
 
+using TSection = TPair<FString, FString>;
+using TSections = TArray<TSection>;
 enum class ENotificationReason {
     Success,
     Warning,
@@ -30,6 +32,21 @@ public:
     FString GetBlueprintSourceDirectory() { return _config->BlueprintSourceMapDirectory; }
     FString GetBlueprintSourceFilePath();
     bool IsAutoReparentingEnabled() { return _config->EnableAutoReparenting; }
+    FString GetGeneratedMethodsPrefix() { return _config->GeneratedMethodsPrefix; }
+    FString GetGeneratedMethodsSuffix() { return _config->GeneratedMethodsSuffix; }
+    FString GetGeneratedIncludesPrefix() { return _config->GeneratedIncludesPrefix; }
+    FString GetGeneratedIncludesSuffix() { return _config->GeneratedIncludesSuffix; }
+    FString GetGeneratedLoaderPrefix() { return _config->GeneratedLoaderPrefix; }
+    FString GetGeneratedLoaderSuffix() { return _config->GeneratedLoaderSuffix; }
+    FString GetGeneratedPropertiesPrefix() { return _config->GeneratedPropertiesPrefix; }
+    FString GetGeneratedPropertiesSuffix() { return _config->GeneratedPropertiesSuffix; }
+
+private: // Fill Templates Sections
+    FString FillHeaderTemplateSections(const FString headerTemplate);
+    FString FillCppTemplateSections(const FString cppTemplate);
+    FString ReplaceSections(const FString& source, const TSections& sections);
+	FString HeaderFileTemplate;
+	FString CppFileTemplate;
 
 private:
     FString UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents, FString blueprintReferencePath);
