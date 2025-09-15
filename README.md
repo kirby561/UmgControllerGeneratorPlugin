@@ -26,12 +26,31 @@ You can configure the plugin settings by placing the following in your Config/De
 ClassSuffix="Controller"
 BlueprintSourceMapDirectory=""
 EnableAutoReparenting=true
+GeneratedMethodsPrefix="#pragma region Generated Methods Section"
+GeneratedMethodsSuffix="#pragma endregion Generated Methods Section"
+GeneratedIncludesPrefix="#pragma region Generated Includes Section"
+GeneratedIncludesSuffix="#pragma endregion Generated Includes Section"
+GeneratedLoaderPrefix="#pragma region Generated Loader Section"
+GeneratedLoaderSuffix="#pragma endregion Generated Loader Section"
+GeneratedPropertiesPrefix="#pragma region Generated Properties Section"
+GeneratedPropertiesSuffix="#pragma endregion Generated Properties Section"
 ```
-	
+
+Note that you can configure what wraps the auto-generated include/methods/loader/properties sections in the file to suit your environment. In the example above it creates #pragma regions that can be collapsed in Visual Studio for example. By default the generated sections will look like this:
+```
+// ---------- Generated Includes Section ---------- //
+//             (Don't modify manually)              //
+#include "Components/CanvasPanel.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
+// ---------- End Generated Includes Section ---------- //
+```
+
 While I expect this to work with other versions as well, this has only been tested so far with Unreal 5.1.
 
 Notes:
-
+```
 	- Your C++ source files need to be named the same as your Widget Blueprints (plus the configurable ClassSuffix and minus the WBP_ prefix) in order for UpdateMappings to work. For example, if your Widget Blueprint is named "WBP_Menu" and the suffix is "Controller", your h/cpp files need to be named MenuController with a class called UMenuController inside.
 	
 	- The BlueprintSourceMap.json file should be source controlled so other team members can update as well. The paths are relative to the project directory. The path to the directory this file is in can be configured using BlueprintSourceMapDirectory. This path is relative to the project directory and defaults to the root.
+```

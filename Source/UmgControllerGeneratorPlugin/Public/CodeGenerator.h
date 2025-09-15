@@ -32,21 +32,19 @@ public:
     FString GetBlueprintSourceDirectory() { return _config->BlueprintSourceMapDirectory; }
     FString GetBlueprintSourceFilePath();
     bool IsAutoReparentingEnabled() { return _config->EnableAutoReparenting; }
-    FString GetGeneratedMethodsPrefix() { return _config->GeneratedMethodsPrefix; }
-    FString GetGeneratedMethodsSuffix() { return _config->GeneratedMethodsSuffix; }
-    FString GetGeneratedIncludesPrefix() { return _config->GeneratedIncludesPrefix; }
-    FString GetGeneratedIncludesSuffix() { return _config->GeneratedIncludesSuffix; }
-    FString GetGeneratedLoaderPrefix() { return _config->GeneratedLoaderPrefix; }
-    FString GetGeneratedLoaderSuffix() { return _config->GeneratedLoaderSuffix; }
-    FString GetGeneratedPropertiesPrefix() { return _config->GeneratedPropertiesPrefix; }
-    FString GetGeneratedPropertiesSuffix() { return _config->GeneratedPropertiesSuffix; }
+    FString GetGeneratedMethodsPrefix() { return UnescapeNewlines(_config->GeneratedMethodsPrefix); }
+    FString GetGeneratedMethodsSuffix() { return UnescapeNewlines(_config->GeneratedMethodsSuffix); }
+    FString GetGeneratedIncludesPrefix() { return UnescapeNewlines(_config->GeneratedIncludesPrefix); }
+    FString GetGeneratedIncludesSuffix() { return UnescapeNewlines(_config->GeneratedIncludesSuffix); }
+    FString GetGeneratedLoaderPrefix() { return UnescapeNewlines(_config->GeneratedLoaderPrefix); }
+    FString GetGeneratedLoaderSuffix() { return UnescapeNewlines(_config->GeneratedLoaderSuffix); }
+    FString GetGeneratedPropertiesPrefix() { return UnescapeNewlines(_config->GeneratedPropertiesPrefix); }
+    FString GetGeneratedPropertiesSuffix() { return UnescapeNewlines(_config->GeneratedPropertiesSuffix); }
 
 private: // Fill Templates Sections
     FString FillHeaderTemplateSections(const FString headerTemplate);
     FString FillCppTemplateSections(const FString cppTemplate);
     FString ReplaceSections(const FString& source, const TSections& sections);
-	FString HeaderFileTemplate;
-	FString CppFileTemplate;
 
 private:
     FString UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, FString headerContents, FString blueprintReferencePath);
@@ -58,6 +56,7 @@ private:
     void ShowSuccessMessage(FString message) { ShowNotification(message, ENotificationReason::Success); }
     void ReportWarning(FString message) { ShowNotification(message, ENotificationReason::Warning); }
     void ReportError(FString message) { ShowNotification(message, ENotificationReason::Error); }
+    FString UnescapeNewlines(const FString& input);
 
     // Holds a lookup table from class name to header file
     UPROPERTY()
@@ -75,4 +74,8 @@ private:
 
     UPROPERTY()
     UCodeGeneratorConfig* _config = nullptr;
+
+    // The templates for created header and cpp files
+    FString _headerFileTemplate;
+    FString _cppFileTemplate;
 };

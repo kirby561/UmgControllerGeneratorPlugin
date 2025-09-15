@@ -35,12 +35,10 @@ public: // Create Method\n\
 \n\
 public: // Properties\n\
 [START_GENERATED_PROPERTIES_SECTION]\n\
-//             (Don't modify manually)             //\n\
 [END_GENERATED_PROPERTIES_SECTION]\n\
 };\n\
 \n\
 [START_GENERATED_LOADER_SECTION]\n\
-//             (Don't modify manually)            //\n\
 UCLASS()\n\
 class U[WIDGET_NAME]Loader : public UObject {\n\
     GENERATED_BODY()\n\
@@ -60,7 +58,6 @@ const FString MarkedCppFileTemplate = TEXT("\
 #include \"[HEADER_FILE_NAME].h\"\n\
 \n\
 [START_GENERATED_INCLUDES_SECTION]\n\
-//             (Don't modify manually)              //\n\
 \n\
 [END_GENERATED_INCLUDES_SECTION]\n\
 \n\
@@ -69,7 +66,6 @@ U[WIDGET_NAME][WIDGET_SUFFIX]::U[WIDGET_NAME][WIDGET_SUFFIX](const FObjectInitia
 }\n\
 \n\
 [START_GENERATED_METHODS_SECTION]\n\
-//             (Don't modify manually)             //\n\
 U[WIDGET_NAME][WIDGET_SUFFIX]* U[WIDGET_NAME][WIDGET_SUFFIX]::CreateInstance(APlayerController* playerController) {\n\
     U[WIDGET_NAME]Loader* loader = NewObject<U[WIDGET_NAME]Loader>(playerController);\n\
     return Cast<U[WIDGET_NAME][WIDGET_SUFFIX]>(CreateWidget(playerController, loader->WidgetTemplate));\n\
@@ -90,7 +86,6 @@ const FString IncludeSectionStartMarker = TEXT("[START_GENERATED_INCLUDES_SECTIO
 const FString IncludeSectionEndMarker = TEXT("[END_GENERATED_INCLUDES_SECTION]");
 const FString MethodSectionStartMarker = TEXT("[START_GENERATED_METHODS_SECTION]");
 const FString MethodSectionEndMarker = TEXT("[END_GENERATED_METHODS_SECTION]");
-const FString DoNotModifyComment = TEXT("//             (Don't modify manually)              //");
 const FString BindWidgetLabel = TEXT("UPROPERTY(BlueprintReadOnly, meta = (BindWidget))");
 const FString WidgetNameMarker = TEXT("[WIDGET_NAME]");
 const FString WidgetSuffixMarker = TEXT("[WIDGET_SUFFIX]");
@@ -100,8 +95,8 @@ const FString WidgetLineMarker = TEXT("static const inline FString WidgetPath = 
 
 UCodeGenerator::UCodeGenerator(const FObjectInitializer& initializer) {
     _config = CreateDefaultSubobject<UCodeGeneratorConfig>(TEXT("Config"));
-    HeaderFileTemplate = FillHeaderTemplateSections(MarkedHeaderFileTemplate);
-	CppFileTemplate = FillCppTemplateSections(MarkedCppFileTemplate);
+    _headerFileTemplate = FillHeaderTemplateSections(MarkedHeaderFileTemplate);
+	_cppFileTemplate = FillCppTemplateSections(MarkedCppFileTemplate);
 }
 
 /**
@@ -168,7 +163,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
 
             // Make the header from the template
             FString headerFileName = FPaths::GetBaseFilename(headerFilePath);
-            FString headerFileStr = HeaderFileTemplate;
+            FString headerFileStr = _headerFileTemplate;
             headerFileStr = headerFileStr.Replace(*WidgetNameMarker, *widgetName);
             headerFileStr = headerFileStr.Replace(*WidgetSuffixMarker, *widgetSuffix);
             headerFileStr = headerFileStr.Replace(*WidgetPathMarker, *widgetPath);
@@ -182,7 +177,7 @@ void UCodeGenerator::CreateFiles(UWidgetBlueprint* blueprint, FString widgetPath
             }
 
             // Make the CPP from the template
-            FString cppFileStr = CppFileTemplate;
+            FString cppFileStr = _cppFileTemplate;
             cppFileStr = cppFileStr.Replace(*WidgetNameMarker, *widgetName);
             cppFileStr = cppFileStr.Replace(*WidgetSuffixMarker, *widgetSuffix);
             cppFileStr = cppFileStr.Replace(*HeaderFileNameMarker, *headerFileName);
@@ -350,21 +345,20 @@ FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, F
     FString result;
 
     // Find the different sections of the file
-    int propertiesSectionStartIndex = headerContents.Find(PropertiesSectionStartMarker);
+    int propertiesSectionStartIndex = headerContents.Find(GetGeneratedPropertiesPrefix());
     if (propertiesSectionStartIndex < 0) {
         UE_LOG(CodeGeneratorSub, Error, TEXT("No properties section found in header"));
         return FString();
     }
 
-    int propertiesSectionEndIndex = headerContents.Find(PropertiesSectionEndMarker);
+    int propertiesSectionEndIndex = headerContents.Find(GetGeneratedPropertiesSuffix());
     if (propertiesSectionEndIndex < 0) {
         UE_LOG(CodeGeneratorSub, Error, TEXT("No properties section end found in header"));
         return FString();
     }
 
-    result.Append(headerContents.Left(propertiesSectionStartIndex + PropertiesSectionStartMarker.Len()));
+    result.Append(headerContents.Left(propertiesSectionStartIndex + GetGeneratedPropertiesPrefix().Len()));
     result.Append(TEXT("\n"));
-    result.Append(DoNotModifyComment + TEXT("\n"));
 
     // For each named widget, add it to the properties section
     bool isFirst = true;
@@ -384,20 +378,20 @@ FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, F
     }
 
     // Write the end section
-    result.Append(PropertiesSectionEndMarker + TEXT("\n"));
+    result.Append(GetGeneratedPropertiesSuffix() + TEXT("\n"));
 
-    int generatedLoaderStartIndex = headerContents.Find(LoaderSectionStartMarker);
-    int generatedLoaderEndIndex = headerContents.Find(LoaderSectionEndMarker);
+    int generatedLoaderStartIndex = headerContents.Find(GetGeneratedLoaderPrefix());
+    int generatedLoaderEndIndex = headerContents.Find(GetGeneratedLoaderSuffix());
     if (generatedLoaderStartIndex != INDEX_NONE && generatedLoaderEndIndex != INDEX_NONE) {
         // Append what was between the end of the property 
         // section and the beginning of the loading section
-        int startIndex = propertiesSectionEndIndex + PropertiesSectionEndMarker.Len() + 1;
+        int startIndex = propertiesSectionEndIndex + GetGeneratedPropertiesSuffix().Len() + 1;
         int count = generatedLoaderStartIndex - startIndex;
         FString contentsBetweenPropertiesAndLoader = headerContents.Mid(startIndex, count);
         result.Append(contentsBetweenPropertiesAndLoader);
 
         startIndex = generatedLoaderStartIndex;
-        count = (generatedLoaderEndIndex + LoaderSectionEndMarker.Len() + 1) - startIndex;
+        count = (generatedLoaderEndIndex + GetGeneratedLoaderSuffix().Len() + 1) - startIndex;
         FString currentLoaderSection = headerContents.Mid(startIndex, count);
 
         // Rebuild the loader section with the current blueprint path
@@ -418,13 +412,13 @@ FString UCodeGenerator::UpdateHeaderFile(const TArray<UWidget*>& namedWidgets, F
         result.Append(newLoaderSection);
 
         // Add the rest of the file
-        FString afterLoaderSection = headerContents.RightChop(generatedLoaderEndIndex + LoaderSectionEndMarker.Len() + 1);
+        FString afterLoaderSection = headerContents.RightChop(generatedLoaderEndIndex + GetGeneratedLoaderSuffix().Len() + 1);
         result.Append(afterLoaderSection);
     } else {
         UE_LOG(CodeGeneratorSub, Error, TEXT("No loader section start found in header"));
 
         // Just write whatever was there before and don't update the loading section.
-        result.Append(headerContents.RightChop(propertiesSectionEndIndex + PropertiesSectionEndMarker.Len() + 1));
+        result.Append(headerContents.RightChop(propertiesSectionEndIndex + GetGeneratedPropertiesSuffix().Len() + 1));
     }
 
     return result;
@@ -434,21 +428,20 @@ FString UCodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FStr
     FString result;
 
     // Find the different sections of the file
-    int includesSectionStartIndex = cppContents.Find(IncludeSectionStartMarker);
+    int includesSectionStartIndex = cppContents.Find(GetGeneratedIncludesPrefix());
     if (includesSectionStartIndex < 0) {
         UE_LOG(CodeGeneratorSub, Error, TEXT("No includes section found in cpp"));
         return FString();
     }
 
-    int includesSectionEndIndex = cppContents.Find(IncludeSectionEndMarker);
+    int includesSectionEndIndex = cppContents.Find(GetGeneratedIncludesSuffix());
     if (includesSectionEndIndex < 0) {
         UE_LOG(CodeGeneratorSub, Error, TEXT("No properties section end found in cpp"));
         return FString();
     }
 
-    result.Append(cppContents.Left(includesSectionStartIndex + IncludeSectionStartMarker.Len()));
+    result.Append(cppContents.Left(includesSectionStartIndex + GetGeneratedIncludesPrefix().Len()));
     result.Append(TEXT("\n"));
-    result.Append(DoNotModifyComment + TEXT("\n"));
 
     // Get the include for each widget and keep them in a set
     UHeaderLookupTable* lookupTable = GetHeaderLookupTable();
@@ -500,8 +493,8 @@ FString UCodeGenerator::UpdateCppFile(const TArray<UWidget*>& namedWidgets, FStr
     }
 
     // Finish off the file
-    result.Append(IncludeSectionEndMarker + TEXT("\n"));
-    result.Append(cppContents.RightChop(includesSectionEndIndex + IncludeSectionEndMarker.Len() + 1));
+    result.Append(GetGeneratedIncludesSuffix() + TEXT("\n"));
+    result.Append(cppContents.RightChop(includesSectionEndIndex + GetGeneratedIncludesSuffix().Len() + 1));
 
     return result;
 }
@@ -587,6 +580,13 @@ UBlueprint* UCodeGenerator::GetBlueprintForWidget(UWidget* widget) {
     }
 
     return nullptr;
+}
+
+/**
+ * Replaces all occurences of "\n" with an actual newline in the given string.
+ */
+FString UCodeGenerator::UnescapeNewlines(const FString& input) {
+    return input.Replace(TEXT("\\n"), TEXT("\n"), ESearchCase::CaseSensitive);
 }
 
 /**
