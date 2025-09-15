@@ -18,26 +18,26 @@ public:
     bool EnableAutoReparenting = true;
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedMethodsPrefix = TEXT("#pragma region Generated Methods Section");
+    FString GeneratedMethodsPrefix = TEXT("// ---------- Generated Methods Section ---------- //\n//             (Don't modify manually)             //");
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedMethodsSuffix = TEXT("#pragma endregion Generated Methods Section");
+    FString GeneratedMethodsSuffix = TEXT("// ---------- End Generated Methods Section ---------- //");
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedIncludesPrefix = TEXT("#pragma region Generated Includes Section");
+    FString GeneratedIncludesPrefix = TEXT("// ---------- Generated Includes Section ---------- //\n//             (Don't modify manually)              //");
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedIncludesSuffix = TEXT("#pragma endregion Generated Includes Section");
+    FString GeneratedIncludesSuffix = TEXT("// ---------- End Generated Includes Section ---------- //");
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedLoaderPrefix = TEXT("#pragma region Generated Loader Section");
+    FString GeneratedLoaderPrefix = TEXT("// ---------- Generated Loader Section ---------- //\n//             (Don't modify manually)            //");
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedLoaderSuffix = TEXT("#pragma endregion Generated Loader Section");
+    FString GeneratedLoaderSuffix = TEXT("// ---------- End Generated Loader Section ---------- //");
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedPropertiesPrefix = TEXT("#pragma region Generated Properties Section");
+    FString GeneratedPropertiesPrefix = TEXT("// ---------- Generated Properties Section ---------- //\n//              (Don't modify manually)               //");
 
     UPROPERTY(Config, EditAnywhere, Category = "Settings|Sections")
-    FString GeneratedPropertiesSuffix = TEXT("#pragma endregion Generated Properties Section");
+    FString GeneratedPropertiesSuffix = TEXT("// ---------- End Generated Properties Section ---------- //");
 };
